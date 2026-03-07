@@ -72,6 +72,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "dns-hijack": { name: "DNS Hijacking Check", icon: "Globe" },
   "rogue-dhcp": { name: "Captive Portal / Rogue DHCP", icon: "Server" },
   "webrtc-leak": { name: "WebRTC Local IP Leak Detection", icon: "Video" },
+  "content-inject": { name: "Content Injection Detection", icon: "Code" },
 };
 
 export function generateSimulatedChecks(): SecurityCheck[] {
@@ -162,7 +163,7 @@ export function buildScanResult(
 
   const checks: SecurityCheck[] = [
     ...simulated,
-    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak"].map(
+    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject"].map(
       (id) => liveChecks.find((c) => c.id === id)!
     ).filter(Boolean),
   ];
