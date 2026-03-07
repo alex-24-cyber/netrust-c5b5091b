@@ -27,6 +27,7 @@ export interface SecurityCheck {
   status: string;
   explanation: string;
   checkType: "live" | "simulated";
+  evidence?: Record<string, string>;
 }
 
 export interface ScanResult {
@@ -136,6 +137,7 @@ function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
     status: rc.status,
     explanation: rc.explanation,
     checkType: "live" as const,
+    evidence: rc.evidence,
   };
 }
 
