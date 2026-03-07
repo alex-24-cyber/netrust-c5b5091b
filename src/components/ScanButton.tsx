@@ -1,12 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { runAllRealChecks, detectNetworkType, RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "@/lib/networkChecks";
-import { buildScanResult, ScanResult, SecurityCheck, CachedNetworkInfo } from "@/lib/mockData";
+import { buildScanResult, ScanResult } from "@/lib/mockData";
 
 interface ScanButtonProps {
   onScanComplete: (result: ScanResult) => void;
-  demoMode?: boolean;
-  cachedSimulated?: SecurityCheck[];
-  cachedNetworkInfo?: CachedNetworkInfo;
 }
 
 const SCAN_MESSAGES = [
@@ -17,7 +14,7 @@ const SCAN_MESSAGES = [
   "Scanning for rogue access points...",
 ];
 
-const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkInfo }: ScanButtonProps) => {
+const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -41,14 +38,11 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
     realChecksResolvedRef.current = false;
     animDoneRef.current = false;
 
-    // Start real checks immediately (unless demo mode skips them)
-    if (!demoMode) {
-      runAllRealChecks().then((results) => {
-        realChecksRef.current = results;
-        realChecksResolvedRef.current = true;
-      });
-    }
-  }, [scanning, demoMode]);
+    runAllRealChecks().then((results) => {
+      realChecksRef.current = results;
+      realChecksResolvedRef.current = true;
+    });
+  }, [scanning]);
 
   // Progress timer
   useEffect(() => {
@@ -83,25 +77,17 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
     if (progress < 100 || !scanning || showComplete || finalising) return;
     animDoneRef.current = true;
 
-    if (demoMode) {
-      // Demo mode: no real checks needed
-      setShowComplete(true);
-      return;
-    }
-
     if (realChecksResolvedRef.current) {
       setShowComplete(true);
     } else {
-      // Wait for real checks with extended timeout
       setFinalising(true);
     }
-  }, [progress, scanning, showComplete, finalising, demoMode]);
+  }, [progress, scanning, showComplete, finalising]);
 
   // Finalising: wait up to 5 more seconds for real checks
   useEffect(() => {
     if (!finalising) return;
     const maxWait = setTimeout(() => {
-      // Force complete even without results
       setFinalising(false);
       setShowComplete(true);
     }, 5000);
@@ -125,24 +111,16 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
   useEffect(() => {
     if (!showComplete || !scanning) return;
     const timer = setTimeout(() => {
-      if (!demoMode) {
-        const connInfo = detectNetworkType();
-        const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
-        const result = buildScanResult(realData.checks, connInfo, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
-        setScanning(false);
-        setShowComplete(false);
-        setFinalising(false);
-        onScanComplete(result);
-      } else {
-        // Demo mode: parent handles result generation
-        setScanning(false);
-        setShowComplete(false);
-        setFinalising(false);
-        onScanComplete(null as any); // signal demo mode
-      }
+      const connInfo = detectNetworkType();
+      const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
+      const result = buildScanResult(realData.checks, connInfo, realData.publicIp, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
+      setScanning(false);
+      setShowComplete(false);
+      setFinalising(false);
+      onScanComplete(result);
     }, 1200);
     return () => clearTimeout(timer);
-  }, [showComplete, scanning, onScanComplete, demoMode]);
+  }, [showComplete, scanning, onScanComplete]);
 
   const radius = 72;
   const circumference = 2 * Math.PI * radius;

@@ -625,13 +625,11 @@ export async function runAllRealChecks(): Promise<{
     fetchPublicIP(),
   ]);
 
-  addLog("Generating simulated checks (Evil Twin, ARP Spoofing)...");
-  
   const webrtcResult = checksResults.find((c) => c.id === "webrtc-leak") as WebRTCLeakResult | undefined;
   const ipRepResult = checksResults.find((c) => c.id === "ip-reputation") as IPReputationResult | undefined;
 
   const passed = checksResults.filter((c) => c.passed === true).length;
-  addLog(`All checks complete. ${passed + 2}/9 checks evaluated.`);
+  addLog(`All checks complete. ${passed}/7 checks passed.`);
 
   // Sort log by timestamp
   log.sort((a, b) => a.timestamp - b.timestamp);
