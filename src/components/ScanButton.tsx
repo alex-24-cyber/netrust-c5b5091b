@@ -26,6 +26,8 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
   const [finalising, setFinalising] = useState(false);
 
   const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null } | null>(null);
+  const realChecksResolvedRef = useRef(false);
+  const animDoneRef = useRef(false);
 
   const startScan = useCallback(() => {
     if (scanning) return;

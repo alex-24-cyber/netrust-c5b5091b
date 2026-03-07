@@ -110,7 +110,9 @@ export function generateForcedResult(force: DemoForce): ScanResult {
     signalStrength: -(randBetween(30, 80)),
     encryption,
     gatewayIp: randomIp(),
+    publicIp: null,
     trustScore, trustLabel, checks,
+    isDemo: true,
   };
 }
 
@@ -145,6 +147,8 @@ function generateRandomResult(): ScanResult {
     signalStrength: -(randBetween(30, 80)),
     encryption,
     gatewayIp: randomIp(),
+    publicIp: null,
     trustScore, trustLabel, checks,
+    isDemo: true,
   };
 }

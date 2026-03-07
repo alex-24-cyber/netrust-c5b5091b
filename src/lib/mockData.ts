@@ -222,6 +222,7 @@ export function generateScanResult(): ScanResult {
     signalStrength: -(Math.floor(Math.random() * 50) + 30),
     encryption,
     gatewayIp: randomIp(),
+    publicIp: null,
     trustScore, trustLabel, checks,
   };
 }
