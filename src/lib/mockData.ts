@@ -71,8 +71,23 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
 };
 
 export function generateSimulatedChecks(): SecurityCheck[] {
-  return SIMULATED_CHECKS.map((t) => {
-    const passed = Math.random() > 0.3; // 70% pass rate
+  // Each check passes 80% of the time individually
+  let evilTwinPassed = Math.random() < 0.8;
+  let arpPassed = Math.random() < 0.8;
+
+  // Cap: at most 1 simulated check fails per scan
+  if (!evilTwinPassed && !arpPassed) {
+    // Randomly pick one to pass
+    if (Math.random() < 0.5) {
+      evilTwinPassed = true;
+    } else {
+      arpPassed = true;
+    }
+  }
+
+  const results = [evilTwinPassed, arpPassed];
+  return SIMULATED_CHECKS.map((t, i) => {
+    const passed = results[i];
     return {
       id: t.id,
       name: t.name,
