@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ScanResult } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   Copy, Network, Lock, Globe, Server,
@@ -30,7 +30,8 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
   const glowClass = color === "danger" ? "trust-glow-danger" : color === "warning" ? "trust-glow-warning" : "trust-glow-safe";
 
   const networkInfo = [
-    { label: "SSID", value: result.networkName },
+    { label: "SSID", value: result.networkName, note: result.ssidNote },
+    { label: "Type", value: result.networkType },
     { label: "BSSID", value: result.bssid },
     { label: "Channel", value: String(result.channel) },
     { label: "Signal", value: `${result.signalStrength} dBm` },
@@ -75,6 +76,9 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
             <div key={item.label}>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
               <p className="text-sm font-mono text-foreground truncate">{item.value}</p>
+              {item.note && (
+                <p className="text-[9px] text-muted-foreground/70 italic">{item.note}</p>
+              )}
             </div>
           ))}
         </div>
@@ -88,6 +92,8 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         {result.checks.map((check) => {
           const Icon = iconMap[check.icon] || Shield;
           const isOpen = expanded === check.id;
+          const isTimedOut = check.passed === null;
+
           return (
             <button
               key={check.id}
@@ -95,17 +101,49 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
               className="glass-card p-3 text-left w-full transition-all duration-200"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-1.5 rounded-lg ${check.passed ? "bg-trust-safe/10" : "bg-trust-danger/10"}`}>
-                  <Icon size={16} className={check.passed ? "text-trust-safe" : "text-trust-danger"} />
+                <div className={`p-1.5 rounded-lg ${
+                  isTimedOut
+                    ? "bg-trust-warning/10"
+                    : check.passed
+                    ? "bg-trust-safe/10"
+                    : "bg-trust-danger/10"
+                }`}>
+                  <Icon size={16} className={
+                    isTimedOut
+                      ? "text-trust-warning"
+                      : check.passed
+                      ? "text-trust-safe"
+                      : "text-trust-danger"
+                  } />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{check.name}</p>
-                  <p className={`text-xs ${check.passed ? "text-trust-safe" : "text-trust-danger"}`}>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{check.name}</p>
+                    {check.checkType === "live" ? (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                        Live
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                        Simulated
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-xs ${
+                    isTimedOut
+                      ? "text-trust-warning"
+                      : check.passed
+                      ? "text-trust-safe"
+                      : "text-trust-danger"
+                  }`}>
                     {check.status}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  {check.passed ? (
+                  {isTimedOut ? (
+                    <AlertTriangle size={16} className="text-trust-warning" />
+                  ) : check.passed ? (
                     <Check size={16} className="text-trust-safe" />
                   ) : (
                     <X size={16} className="text-trust-danger" />

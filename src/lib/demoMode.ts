@@ -1,33 +1,33 @@
-import { ScanResult } from "./mockData";
+import { ScanResult, SecurityCheck } from "./mockData";
 
 const CHECK_TEMPLATES = [
   {
-    id: "evil-twin", name: "Evil Twin Detection", icon: "Copy",
+    id: "evil-twin", name: "Evil Twin Detection", icon: "Copy", checkType: "simulated" as const,
     passStatus: "No duplicate SSIDs detected", failStatus: "Duplicate SSID with mismatched BSSID found",
     passExplanation: "We scanned for networks with the same name but different hardware identifiers. No suspicious duplicates were found, which means this network is likely genuine.",
     failExplanation: "We detected another network broadcasting the same name but from different hardware. This is a common attack where hackers create a fake copy of a real network to intercept your data.",
   },
   {
-    id: "arp-spoof", name: "ARP Spoofing Analysis", icon: "Network",
+    id: "arp-spoof", name: "ARP Spoofing Analysis", icon: "Network", checkType: "simulated" as const,
     passStatus: "ARP tables consistent", failStatus: "ARP anomalies detected — possible MITM",
     passExplanation: "The network's address resolution tables are consistent and show no signs of manipulation. Your traffic is being routed to the correct destinations.",
     failExplanation: "We found inconsistencies in the ARP tables that suggest someone may be intercepting traffic between you and the router. This is a man-in-the-middle attack indicator.",
   },
   {
-    id: "ssl-cert", name: "SSL Certificate Validation", icon: "Lock",
-    passStatus: "HTTPS connections verified", failStatus: "SSL stripping attempt detected",
+    id: "ssl-cert", name: "SSL Certificate Validation", icon: "Lock", checkType: "live" as const,
+    passStatus: "HTTPS connections verified — no SSL stripping detected", failStatus: "HTTPS connections failing — possible SSL interception",
     passExplanation: "All tested HTTPS connections are using valid certificates from trusted authorities. Your encrypted connections appear to be secure and untampered.",
     failExplanation: "We detected attempts to downgrade your secure HTTPS connections to unencrypted HTTP. This technique, known as SSL stripping, could expose your passwords and personal data.",
   },
   {
-    id: "dns-hijack", name: "DNS Hijacking Check", icon: "Globe",
-    passStatus: "DNS responses match expected resolvers", failStatus: "DNS responses redirected to unknown servers",
+    id: "dns-hijack", name: "DNS Hijacking Check", icon: "Globe", checkType: "live" as const,
+    passStatus: "DNS responses consistent across providers", failStatus: "DNS responses inconsistent — possible redirection detected",
     passExplanation: "DNS queries are returning expected results from legitimate resolvers. Websites you visit will load from their real servers, not impostor pages.",
     failExplanation: "DNS responses are being redirected to unexpected servers. This means when you type a website address, you could be sent to a fake version designed to steal your credentials.",
   },
   {
-    id: "rogue-dhcp", name: "Rogue DHCP Detection", icon: "Server",
-    passStatus: "Single authorised DHCP server found", failStatus: "Unauthorised DHCP server detected",
+    id: "rogue-dhcp", name: "Captive Portal / Rogue DHCP", icon: "Server", checkType: "live" as const,
+    passStatus: "No captive portal or rogue DHCP detected", failStatus: "Captive portal or network interception detected",
     passExplanation: "Only one DHCP server is operating on this network, which is the expected configuration. Your device received a legitimate IP address assignment.",
     failExplanation: "Multiple DHCP servers are active on this network, which is abnormal. An unauthorised server could assign you a malicious gateway, routing all your traffic through an attacker's device.",
   },
@@ -87,12 +87,13 @@ export function generateForcedResult(force: DemoForce): ScanResult {
     failIndices.add(Math.floor(Math.random() * 5));
   }
 
-  const checks = CHECK_TEMPLATES.map((t, i) => {
+  const checks: SecurityCheck[] = CHECK_TEMPLATES.map((t, i) => {
     const passed = !failIndices.has(i);
     return {
       id: t.id, name: t.name, icon: t.icon, passed,
       status: passed ? t.passStatus : t.failStatus,
       explanation: passed ? t.passExplanation : t.failExplanation,
+      checkType: t.checkType,
     };
   });
 
@@ -102,6 +103,8 @@ export function generateForcedResult(force: DemoForce): ScanResult {
 
   return {
     networkName: pick(NETWORK_NAMES),
+    networkType: "Wi-Fi",
+    ssidNote: "",
     bssid: randomMac(),
     channel: pick(CHANNELS),
     signalStrength: -(randBetween(30, 80)),
@@ -118,12 +121,13 @@ function generateRandomResult(): ScanResult {
     failIndices.add(Math.floor(Math.random() * 5));
   }
 
-  const checks = CHECK_TEMPLATES.map((t, i) => {
+  const checks: SecurityCheck[] = CHECK_TEMPLATES.map((t, i) => {
     const passed = !failIndices.has(i);
     return {
       id: t.id, name: t.name, icon: t.icon, passed,
       status: passed ? t.passStatus : t.failStatus,
       explanation: passed ? t.passExplanation : t.failExplanation,
+      checkType: t.checkType,
     };
   });
 
@@ -134,6 +138,8 @@ function generateRandomResult(): ScanResult {
 
   return {
     networkName: pick(NETWORK_NAMES),
+    networkType: "Wi-Fi",
+    ssidNote: "",
     bssid: randomMac(),
     channel: pick(CHANNELS),
     signalStrength: -(randBetween(30, 80)),
