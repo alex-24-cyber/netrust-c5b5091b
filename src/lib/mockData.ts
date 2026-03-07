@@ -39,6 +39,7 @@ export interface ScanResult {
   encryption: string;
   gatewayIp: string;
   publicIp: string | null;
+  webrtcLocalIp?: string;
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
@@ -70,6 +71,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "ssl-cert": { name: "SSL Certificate Validation", icon: "Lock" },
   "dns-hijack": { name: "DNS Hijacking Check", icon: "Globe" },
   "rogue-dhcp": { name: "Captive Portal / Rogue DHCP", icon: "Server" },
+  "webrtc-leak": { name: "WebRTC Local IP Leak Detection", icon: "Video" },
 };
 
 export function generateSimulatedChecks(): SecurityCheck[] {
@@ -152,13 +154,14 @@ export function buildScanResult(
   publicIp: string | null,
   cachedSimulated?: SecurityCheck[],
   cachedInfo?: CachedNetworkInfo,
+  webrtcLeakedIp?: string,
 ): ScanResult {
   const simulated = cachedSimulated || generateSimulatedChecks();
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
   const checks: SecurityCheck[] = [
     ...simulated,
-    ...["ssl-cert", "dns-hijack", "rogue-dhcp"].map(
+    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak"].map(
       (id) => liveChecks.find((c) => c.id === id)!
     ).filter(Boolean),
   ];
@@ -177,6 +180,7 @@ export function buildScanResult(
     encryption: numFails >= 3 ? "Open" : info.encryption,
     gatewayIp: info.gatewayIp,
     publicIp,
+    webrtcLocalIp: webrtcLeakedIp,
     trustScore,
     trustLabel,
     checks,
