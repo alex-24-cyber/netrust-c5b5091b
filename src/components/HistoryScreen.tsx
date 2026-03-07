@@ -83,7 +83,7 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-xs text-muted-foreground">{entry.result.networkType}</span>
                   <span className="text-muted-foreground/30">·</span>
-                  <span className="text-xs text-muted-foreground">{passedCount}/5 passed</span>
+                  <span className="text-xs text-muted-foreground">{passedCount}/{entry.result.checks.length} passed</span>
                 </div>
                 <div className="flex items-center gap-1 mt-0.5">
                   <Clock size={10} className="text-muted-foreground/60" />

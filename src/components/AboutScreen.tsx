@@ -1,4 +1,4 @@
-import { Shield, Wifi, Scan, Award, Copy, Network, Lock, Globe, Server, ChevronRight } from "lucide-react";
+import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer } from "lucide-react";
 
 const STEPS = [
   { icon: Wifi, label: "Connect to any network" },
@@ -7,11 +7,13 @@ const STEPS = [
 ];
 
 const CHECKS = [
-  { icon: Copy, name: "Evil Twin Attacks", desc: "Fake networks impersonating legitimate hotspots" },
-  { icon: Network, name: "ARP Spoofing", desc: "Attackers redirecting your traffic through their device" },
-  { icon: Lock, name: "SSL Stripping", desc: "Downgrading your secure connections to steal data" },
-  { icon: Globe, name: "DNS Hijacking", desc: "Redirecting your web requests to malicious servers" },
-  { icon: Server, name: "Rogue DHCP", desc: "Unauthorised servers assigning your network settings" },
+  { icon: Globe, name: "DNS Hijacking", desc: "Detects if DNS responses are being manipulated to redirect you to malicious servers" },
+  { icon: Lock, name: "SSL Certificate Validation", desc: "Verifies HTTPS connections aren't being stripped or intercepted" },
+  { icon: Server, name: "Captive Portal / Rogue DHCP", desc: "Identifies unauthorised network gateways intercepting your traffic" },
+  { icon: Video, name: "WebRTC IP Leak Detection", desc: "Checks if your local IP is exposed through browser WebRTC" },
+  { icon: Code, name: "Content Injection Detection", desc: "Scans HTTP traffic for injected scripts, ads, or tracking code" },
+  { icon: Fingerprint, name: "Public IP Reputation", desc: "Verifies your traffic exits through a legitimate ISP, not a proxy or datacenter" },
+  { icon: Timer, name: "Latency Anomaly Detection", desc: "Measures round-trip times to detect suspicious traffic routing" },
 ];
 
 const AboutScreen = () => {
@@ -66,6 +68,7 @@ const AboutScreen = () => {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           What We Detect
         </h3>
+        <p className="text-[10px] text-muted-foreground mb-3">7 live checks running against your real connection</p>
         <div className="flex flex-col gap-3">
           {CHECKS.map((check) => {
             const Icon = check.icon;
@@ -74,8 +77,14 @@ const AboutScreen = () => {
                 <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
                   <Icon size={14} className="text-primary" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">{check.name}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-foreground">{check.name}</p>
+                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                      <span className="w-1 h-1 rounded-full bg-trust-safe" />
+                      Live
+                    </span>
+                  </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">{check.desc}</p>
                 </div>
               </div>
