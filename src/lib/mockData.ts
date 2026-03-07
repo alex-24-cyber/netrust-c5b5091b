@@ -1,4 +1,4 @@
-import { RealCheckResult, IPReputationData } from "./networkChecks";
+import { RealCheckResult, IPReputationData, ScanLogEntry } from "./networkChecks";
 
 const NETWORK_NAMES = [
   "Cafe_FreeWifi", "Airport_Lounge", "Hotel_Guest", "StarBucks_WiFi",
@@ -45,6 +45,7 @@ export interface ScanResult {
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
+  scanLog?: ScanLogEntry[];
   isDemo?: boolean;
 }
 
@@ -163,6 +164,7 @@ export function buildScanResult(
   cachedInfo?: CachedNetworkInfo,
   webrtcLeakedIp?: string,
   ipReputation?: IPReputationData,
+  scanLog?: ScanLogEntry[],
 ): ScanResult {
   const simulated = cachedSimulated || generateSimulatedChecks();
   const liveChecks = realResults.map(realCheckToSecurityCheck);
