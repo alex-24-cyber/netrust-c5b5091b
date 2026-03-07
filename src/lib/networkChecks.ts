@@ -3,6 +3,7 @@ export interface RealCheckResult {
   passed: boolean | null; // null = timed out
   status: string;
   explanation: string;
+  evidence?: Record<string, string>;
 }
 
 function withTimeout(ms: number): AbortController {
@@ -31,15 +32,21 @@ export async function checkDNS(): Promise<RealCheckResult> {
 
     const hasMatch = googleIPs.some((ip) => cloudflareIPs.includes(ip));
 
+    const evidence: Record<string, string> = {
+      "Google DNS": googleIPs.join(", ") || "No response",
+      "Cloudflare DNS": cloudflareIPs.join(", ") || "No response",
+      "Result": hasMatch ? "Match ✓" : "Mismatch ✗",
+    };
+
     if (hasMatch) {
       return {
-        id, passed: true,
+        id, passed: true, evidence,
         status: "DNS responses consistent across providers",
         explanation: "We queried both Google and Cloudflare DNS-over-HTTPS and received matching IP addresses for example.com. This confirms DNS queries on this network are not being intercepted or redirected.",
       };
     } else {
       return {
-        id, passed: false,
+        id, passed: false, evidence,
         status: "DNS responses inconsistent — possible redirection detected",
         explanation: "Google and Cloudflare DNS returned completely different IP addresses for the same domain. This could indicate DNS hijacking on this network, where your traffic is being silently redirected.",
       };
@@ -47,6 +54,7 @@ export async function checkDNS(): Promise<RealCheckResult> {
   } catch {
     return {
       id, passed: null,
+      evidence: { "Error": "Request failed or timed out" },
       status: "DNS check timed out — could not verify",
       explanation: "The DNS verification requests failed or timed out. This could indicate network interference preventing access to external DNS providers, or simply a slow connection.",
     };
@@ -56,24 +64,44 @@ export async function checkDNS(): Promise<RealCheckResult> {
 export async function checkSSL(): Promise<RealCheckResult> {
   const id = "ssl-cert";
   const urls = ["https://www.google.com", "https://www.cloudflare.com", "https://1.1.1.1"];
+  const names = ["google.com", "cloudflare.com", "1.1.1.1"];
 
   try {
     const ctrl = withTimeout(4000);
+    const timings: { name: string; status: string; ms: number }[] = [];
+
     const results = await Promise.allSettled(
-      urls.map((url) => fetch(url, { method: "HEAD", mode: "no-cors", signal: ctrl.signal }))
+      urls.map(async (url, i) => {
+        const start = performance.now();
+        const res = await fetch(url, { method: "HEAD", mode: "no-cors", signal: ctrl.signal });
+        const ms = Math.round(performance.now() - start);
+        timings.push({ name: names[i], status: "OK", ms });
+        return res;
+      })
     );
 
+    // Fill in failures
+    results.forEach((r, i) => {
+      if (r.status === "rejected" && !timings.find((t) => t.name === names[i])) {
+        timings.push({ name: names[i], status: "Failed", ms: 0 });
+      }
+    });
+
     const successes = results.filter((r) => r.status === "fulfilled").length;
+    const evidence: Record<string, string> = {};
+    timings.forEach((t) => {
+      evidence[t.name] = t.status === "OK" ? `OK (${t.ms}ms)` : "Failed";
+    });
 
     if (successes >= 2) {
       return {
-        id, passed: true,
+        id, passed: true, evidence,
         status: "HTTPS connections verified — no SSL stripping detected",
         explanation: "We successfully established HTTPS connections to multiple major websites. This confirms that encrypted connections are working properly and no SSL stripping attack is active on this network.",
       };
     } else {
       return {
-        id, passed: false,
+        id, passed: false, evidence,
         status: "HTTPS connections failing — possible SSL interception",
         explanation: "Multiple HTTPS connections to well-known sites failed. This could indicate an SSL stripping attack where encrypted connections are being downgraded, potentially exposing your sensitive data.",
       };
@@ -81,6 +109,7 @@ export async function checkSSL(): Promise<RealCheckResult> {
   } catch {
     return {
       id, passed: null,
+      evidence: { "Error": "Request failed or timed out" },
       status: "SSL check timed out — could not verify",
       explanation: "The SSL verification requests failed or timed out. This may indicate network restrictions or interference with outbound HTTPS connections.",
     };
@@ -96,23 +125,34 @@ export async function checkCaptivePortal(): Promise<RealCheckResult> {
       redirect: "manual",
     });
 
+    const evidence: Record<string, string> = {
+      "Target": "gstatic.com/generate_204",
+      "Expected": "204",
+      "Received": String(res.status),
+      "Response type": res.type,
+    };
+
     if (res.status === 204) {
       return {
-        id, passed: true,
+        id, passed: true, evidence,
         status: "No captive portal or rogue DHCP detected",
         explanation: "Google's connectivity check returned a clean 204 response, confirming there is no captive portal or rogue DHCP server intercepting your traffic on this network.",
       };
     } else {
       return {
-        id, passed: false,
+        id, passed: false, evidence,
         status: "Captive portal or network interception detected",
         explanation: "The connectivity check was redirected or returned unexpected content, indicating a captive portal or rogue DHCP server is intercepting traffic. Your connection may be monitored or restricted.",
       };
     }
   } catch {
-    // In browsers, redirect: "manual" + mixed content may throw — treat opaque redirects as possible portal
     return {
       id, passed: null,
+      evidence: {
+        "Target": "gstatic.com/generate_204",
+        "Expected": "204",
+        "Received": "Request blocked (mixed content)",
+      },
       status: "Captive portal check inconclusive",
       explanation: "The captive portal detection request could not complete. This is common due to browser mixed-content restrictions, but could also indicate network interference.",
     };
