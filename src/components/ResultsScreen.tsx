@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
   Copy, Network, Lock, Globe, Server,
@@ -204,15 +205,26 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
   const textClass = color === "danger" ? "text-trust-danger" : color === "warning" ? "text-trust-warning" : "text-trust-safe";
   const glowClass = color === "danger" ? "trust-glow-danger" : color === "warning" ? "trust-glow-warning" : "trust-glow-safe";
 
-  const networkInfo = [
-    { label: "SSID", value: result.networkName, note: result.ssidNote },
-    { label: "Type", value: result.networkType },
-    { label: "BSSID", value: result.bssid },
-    { label: "Channel", value: String(result.channel) },
-    { label: "Signal", value: `${result.signalStrength} dBm` },
-    { label: "Encryption", value: result.encryption },
-    { label: "Gateway", value: result.gatewayIp },
-  ];
+  const isDemo = result.isDemo;
+  const restrictedTooltip = "Browsers restrict access to SSID and BSSID for privacy. The security checks below are running live against your current network connection.";
+
+  const networkInfo = isDemo
+    ? [
+        { label: "SSID", value: result.networkName, badge: "demo" },
+        { label: "Type", value: result.networkType },
+        { label: "BSSID", value: result.bssid, badge: "demo" },
+        { label: "Channel", value: String(result.channel) },
+        { label: "Signal", value: `${result.signalStrength} dBm` },
+        { label: "Encryption", value: result.encryption },
+        { label: "Gateway", value: result.gatewayIp, badge: "demo" },
+      ]
+    : [
+        { label: "Connection Type", value: result.networkType },
+        { label: "SSID", value: "Not available", restricted: true },
+        { label: "BSSID", value: "Not available", restricted: true },
+        ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
+        { label: "Encryption", value: result.encryption },
+      ];
 
   return (
     <div className="animate-fade-in flex flex-col gap-5 pb-6">
@@ -237,27 +249,59 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         </div>
         <div className="text-center">
           <p className={`text-lg font-semibold ${textClass}`}>{result.trustLabel}</p>
-          <p className="text-muted-foreground text-sm">"{result.networkName}"</p>
+          {isDemo ? (
+            <p className="text-muted-foreground text-sm">"{result.networkName}"</p>
+          ) : (
+            <p className="text-muted-foreground text-sm">{result.networkType} Connection</p>
+          )}
         </div>
       </div>
 
       {/* Network Info */}
-      <div className="glass-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-          <Shield size={14} /> Network Info
-        </h3>
-        <div className="grid grid-cols-2 gap-3">
-          {networkInfo.map((item) => (
-            <div key={item.label}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
-              <p className="text-sm font-mono text-foreground truncate">{item.value}</p>
-              {item.note && (
-                <p className="text-[9px] text-muted-foreground/70 italic">{item.note}</p>
-              )}
-            </div>
-          ))}
+      <TooltipProvider>
+        <div className="glass-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <Shield size={14} /> Network Info
+            {isDemo && (
+              <span className="text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded-full border border-primary/30 text-primary/70 bg-primary/5">
+                Demo
+              </span>
+            )}
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {networkInfo.map((item) => (
+              <div key={item.label}>
+                <div className="flex items-center gap-1">
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                  {(item as any).restricted && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="p-0.5 rounded-full hover:bg-muted transition-colors">
+                          <Info size={10} className="text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[260px] text-xs">
+                        {restrictedTooltip}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                  {(item as any).badge === "demo" && (
+                    <span className="text-[8px] font-mono uppercase px-1 py-0 rounded bg-primary/10 text-primary/60 border border-primary/20">
+                      fake
+                    </span>
+                  )}
+                </div>
+                <p className={`text-sm font-mono truncate ${(item as any).restricted ? "text-muted-foreground italic" : "text-foreground"}`}>
+                  {item.value}
+                  {(item as any).restricted && (
+                    <span className="text-[9px] not-italic block text-muted-foreground/60">browser restricted</span>
+                  )}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
 
       {/* Security Checks */}
       <div className="flex flex-col gap-2">
