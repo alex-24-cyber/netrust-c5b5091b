@@ -341,8 +341,50 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
               </span>
             )}
           </h3>
+
+          {/* Detected section (real API data) */}
+          {!isDemo && detectedInfo.length > 0 && (
+            <>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/60 font-semibold mb-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                Detected
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {detectedInfo.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                      {item.badge === "live" && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1 py-0 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                          <span className="w-1 h-1 rounded-full bg-trust-safe animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {item.icon && <item.icon size={13} className="text-muted-foreground shrink-0" />}
+                      <p className="text-sm font-mono truncate text-foreground">{item.value}</p>
+                    </div>
+                    {item.subtitle && (
+                      <p className="text-[9px] text-muted-foreground/60 mt-0.5">{item.subtitle}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider between detected and simulated */}
+              <div className="border-t border-border/50 my-3" />
+            </>
+          )}
+
+          {/* Simulated section */}
+          {!isDemo && (
+            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/60 font-semibold mb-2">
+              Simulated
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            {networkInfo.map((item) => (
+            {simulatedInfo.map((item) => (
               <div key={item.label}>
                 <div className="flex items-center gap-1">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
@@ -363,12 +405,6 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                       fake
                     </span>
                   )}
-                  {(item as any).badge === "live" && (
-                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1 py-0 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
-                      <span className="w-1 h-1 rounded-full bg-trust-safe animate-pulse" />
-                      Live
-                    </span>
-                  )}
                 </div>
                 <p className={`text-sm font-mono truncate ${(item as any).restricted ? "text-muted-foreground italic" : "text-foreground"}`}>
                   {item.value}
@@ -380,6 +416,14 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
             ))}
           </div>
         </div>
+
+        {/* Cellular note */}
+        {!isDemo && isCellular && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-trust-safe/10 border border-trust-safe/20">
+            <Signal size={14} className="text-trust-safe shrink-0" />
+            <p className="text-xs text-trust-safe">You're on mobile data — most Wi-Fi attacks don't apply</p>
+          </div>
+        )}
       </TooltipProvider>
 
       {/* Network Identity */}
