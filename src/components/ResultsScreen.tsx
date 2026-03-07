@@ -297,6 +297,12 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                       fake
                     </span>
                   )}
+                  {(item as any).badge === "live" && (
+                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1 py-0 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                      <span className="w-1 h-1 rounded-full bg-trust-safe animate-pulse" />
+                      Live
+                    </span>
+                  )}
                 </div>
                 <p className={`text-sm font-mono truncate ${(item as any).restricted ? "text-muted-foreground italic" : "text-foreground"}`}>
                   {item.value}
