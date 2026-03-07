@@ -1,10 +1,12 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { runAllRealChecks, detectNetworkType, RealCheckResult } from "@/lib/networkChecks";
-import { buildScanResult, ScanResult } from "@/lib/mockData";
+import { buildScanResult, ScanResult, SecurityCheck, CachedNetworkInfo } from "@/lib/mockData";
 
 interface ScanButtonProps {
   onScanComplete: (result: ScanResult) => void;
   demoMode?: boolean;
+  cachedSimulated?: SecurityCheck[];
+  cachedNetworkInfo?: CachedNetworkInfo;
 }
 
 const SCAN_MESSAGES = [
@@ -15,7 +17,7 @@ const SCAN_MESSAGES = [
   "Scanning for rogue access points...",
 ];
 
-const ScanButton = ({ onScanComplete, demoMode }: ScanButtonProps) => {
+const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkInfo }: ScanButtonProps) => {
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [messageIndex, setMessageIndex] = useState(0);
@@ -126,7 +128,7 @@ const ScanButton = ({ onScanComplete, demoMode }: ScanButtonProps) => {
       if (!demoMode) {
         const { type, ssidNote } = detectNetworkType();
         const realResults = realChecksRef.current || [];
-        const result = buildScanResult(realResults, type, ssidNote);
+        const result = buildScanResult(realResults, type, ssidNote, cachedSimulated, cachedNetworkInfo);
         setScanning(false);
         setShowComplete(false);
         setFinalising(false);
