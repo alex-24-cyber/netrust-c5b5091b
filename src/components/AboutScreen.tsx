@@ -22,17 +22,17 @@ const AboutScreen = () => {
         <div className="p-5 rounded-2xl bg-primary/10 border border-primary/20">
           <Shield size={48} className="text-primary" strokeWidth={1.5} />
         </div>
-        <h2 className="text-2xl font-bold text-foreground tracking-tight">TrustNet</h2>
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">NetTrust</h2>
         <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Wi-Fi Trust Scanner</p>
       </div>
 
       {/* What is TrustNet */}
       <div className="glass-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          What is TrustNet?
+          What is NetTrust?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          TrustNet analyses public Wi-Fi networks for common attack vectors before you trust them with your data. Get a clear trust rating in seconds.
+          NetTrust analyses public Wi-Fi networks for common attack vectors before you trust them with your data. Get a clear trust rating in seconds.
         </p>
       </div>
 

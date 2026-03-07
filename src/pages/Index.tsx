@@ -122,7 +122,7 @@ const Index = () => {
         <header className="relative flex items-center justify-center gap-2 pt-12 pb-4 px-6">
           <button onClick={handleLogoTap} className="flex items-center gap-2 select-none">
             <Shield size={22} className="text-primary" strokeWidth={2.5} />
-            <h1 className="text-xl font-bold tracking-tight text-foreground">TrustNet</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">NetTrust</h1>
           </button>
 
           {demoMode && (
