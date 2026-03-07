@@ -26,7 +26,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
         </div>
 
         {/* Name */}
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">TrustNet</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">NetTrust</h1>
         <p className="text-sm text-muted-foreground text-center">
           Know your network before you connect
         </p>
