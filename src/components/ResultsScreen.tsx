@@ -326,6 +326,43 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         </div>
       </TooltipProvider>
 
+      {/* Network Identity */}
+      {!isDemo && result.ipReputation && (
+        <div className="glass-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <Fingerprint size={14} /> Network Identity
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+              Live
+            </span>
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Public IP</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.ip}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ISP</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.org}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ASN</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.asn}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Exit Location</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.city}, {result.ipReputation.country}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">IP Type</p>
+              <p className={`text-sm font-mono font-medium ${result.ipReputation.isSuspicious ? "text-trust-danger" : "text-trust-safe"}`}>
+                {result.ipReputation.ipType}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Security Checks */}
       <div className="flex flex-col gap-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1">
