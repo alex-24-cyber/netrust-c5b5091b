@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { Shield } from "lucide-react";
 import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
+import AboutScreen from "@/components/AboutScreen";
 import BottomNav from "@/components/BottomNav";
 import { ScanResult, SecurityCheck, CachedNetworkInfo, generateSimulatedChecks, generateNetworkInfo } from "@/lib/mockData";
 import { DemoForce, generateForcedResult } from "@/lib/demoMode";
@@ -125,24 +126,38 @@ const Index = () => {
 
         {/* Content */}
         <main className="flex-1 flex flex-col px-5 overflow-y-auto">
-          {(state === "idle" || state === "scanning") && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-2">
-              {state === "idle" && (
-                <p className="text-muted-foreground text-sm mb-10 text-center">
-                  Know your network before you connect
-                </p>
+          {activeTab === "scan" && (
+            <>
+              {(state === "idle" || state === "scanning") && (
+                <div className="flex-1 flex flex-col items-center justify-center gap-2">
+                  {state === "idle" && (
+                    <p className="text-muted-foreground text-sm mb-10 text-center">
+                      Know your network before you connect
+                    </p>
+                  )}
+                  <ScanButton
+                    onScanComplete={handleScanComplete}
+                    demoMode={demoMode}
+                    cachedSimulated={cached?.simulated}
+                    cachedNetworkInfo={cached?.networkInfo}
+                  />
+                </div>
               )}
-              <ScanButton
-                onScanComplete={handleScanComplete}
-                demoMode={demoMode}
-                cachedSimulated={cached?.simulated}
-                cachedNetworkInfo={cached?.networkInfo}
-              />
+
+              {state === "results" && result && (
+                <ResultsScreen result={result} onScanAgain={handleScanAgain} />
+              )}
+            </>
+          )}
+
+          {activeTab === "history" && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3">
+              <p className="text-muted-foreground text-sm">Scan history coming soon</p>
             </div>
           )}
 
-          {state === "results" && result && (
-            <ResultsScreen result={result} onScanAgain={handleScanAgain} />
+          {activeTab === "about" && (
+            <AboutScreen />
           )}
         </main>
 
