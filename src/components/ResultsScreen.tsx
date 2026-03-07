@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import ScanLog from "@/components/ScanLog";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -251,8 +251,37 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
 
   const isDemo = result.isDemo;
   const restrictedTooltip = "Browsers restrict access to SSID and BSSID for privacy. The security checks below are running live against your current network connection.";
+  const connInfo = result.connectionInfo;
+  const isCellular = connInfo?.type === "Cellular";
 
-  const networkInfo = isDemo
+  const connectionIcon = connInfo?.type === "Wi-Fi" ? Wifi
+    : connInfo?.type === "Cellular" ? Signal
+    : connInfo?.type === "Ethernet" ? Cable
+    : HelpCircle;
+
+  // Detected fields (from Network Information API)
+  const detectedInfo: { label: string; value: string; icon?: React.ElementType; badge?: string; restricted?: boolean; subtitle?: string }[] = isDemo
+    ? []
+    : [
+        {
+          label: "Connection Type",
+          value: connInfo?.apiSupported ? connInfo.type : "Unknown (API not supported by this browser)",
+          icon: connectionIcon,
+        },
+        ...(connInfo?.effectiveType ? [{ label: "Effective Speed", value: connInfo.effectiveType.toUpperCase() }] : []),
+        ...(connInfo?.downlink != null ? [{ label: "Est. Bandwidth", value: `${connInfo.downlink} Mbps` }] : []),
+        ...(connInfo?.rtt != null ? [{ label: "Est. Latency", value: `${connInfo.rtt} ms` }] : []),
+        {
+          label: "SSID",
+          value: "Current Network",
+          subtitle: "Browser privacy policy hides the actual network name",
+        },
+        ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
+        ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" as const }] : []),
+      ];
+
+  // Simulated fields (fake network metadata)
+  const simulatedInfo = isDemo
     ? [
         { label: "SSID", value: result.networkName, badge: "demo" },
         { label: "Type", value: result.networkType },
@@ -263,12 +292,11 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         { label: "Gateway", value: result.gatewayIp, badge: "demo" },
       ]
     : [
-        { label: "Connection Type", value: result.networkType },
-        { label: "SSID", value: "Not available", restricted: true },
         { label: "BSSID", value: "Not available", restricted: true },
-        ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
-        ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" as const }] : []),
+        { label: "Channel", value: String(result.channel) },
+        { label: "Signal", value: `${result.signalStrength} dBm` },
         { label: "Encryption", value: result.encryption },
+        { label: "Gateway", value: result.gatewayIp },
       ];
 
   return (
