@@ -123,6 +123,74 @@ export interface WebRTCLeakResult extends RealCheckResult {
   leakedIp?: string;
 }
 
+export interface IPReputationData {
+  ip: string;
+  org: string;
+  asn: string;
+  city: string;
+  region: string;
+  country: string;
+  isSuspicious: boolean;
+  ipType: string;
+}
+
+export interface IPReputationResult extends RealCheckResult {
+  reputationData?: IPReputationData;
+}
+
+const SUSPICIOUS_ORG_KEYWORDS = ["vpn", "proxy", "hosting", "data center", "datacenter", "cloud", "aws", "azure", "digitalocean", "linode", "vultr", "hetzner", "ovh"];
+
+export async function checkIPReputation(): Promise<IPReputationResult> {
+  const id = "ip-reputation";
+  try {
+    const ctrl = withTimeout(5000);
+    const res = await fetch("https://ipapi.co/json/", { signal: ctrl.signal });
+    const data = await res.json();
+
+    const org = (data.org || "Unknown").toString();
+    const orgLower = org.toLowerCase();
+    const isSuspicious = SUSPICIOUS_ORG_KEYWORDS.some((kw) => orgLower.includes(kw));
+    const ipType = isSuspicious ? "Datacenter/VPN/Proxy" : "Consumer ISP";
+    const city = data.city || "Unknown";
+    const country = data.country_name || data.country || "Unknown";
+
+    const reputationData: IPReputationData = {
+      ip: data.ip || "Unknown",
+      org,
+      asn: data.asn || "Unknown",
+      city,
+      region: data.region || "",
+      country,
+      isSuspicious,
+      ipType,
+    };
+
+    if (isSuspicious) {
+      return {
+        id, passed: false, reputationData,
+        status: `Traffic exiting through ${org} — possible proxy or VPN redirect`,
+        explanation: "Your traffic is exiting the internet through a datacenter or proxy service rather than a normal ISP. This could mean the network operator is routing your traffic through a remote server — possibly to monitor or modify it. This isn't always malicious (some businesses use VPN concentrators), but on a public Wi-Fi network it's a red flag.",
+      };
+    } else {
+      return {
+        id, passed: true, reputationData,
+        status: `Network exit point verified — ${org}, ${city}, ${country}`,
+        explanation: `Your traffic is exiting the internet through ${org}, a recognised ISP in ${city}, ${country}. This is consistent with a normal consumer internet connection and shows no signs of traffic redirection through proxy or datacenter infrastructure.`,
+      };
+    }
+  } catch {
+    return {
+      id, passed: null,
+      status: "Could not verify network exit point",
+      explanation: "The IP reputation lookup failed or timed out. We couldn't determine whether your traffic is exiting through a normal ISP or a suspicious proxy/datacenter.",
+    };
+  }
+}
+
+export interface WebRTCLeakResult extends RealCheckResult {
+  leakedIp?: string;
+}
+
 export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
   const id = "webrtc-leak";
   if (typeof RTCPeerConnection === "undefined") {
@@ -262,9 +330,9 @@ export async function fetchPublicIP(): Promise<string | null> {
   }
 }
 
-export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string }> {
+export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData }> {
   const [checksResults, publicIp] = await Promise.all([
-    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection()]).then((results) =>
+    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection(), checkIPReputation()]).then((results) =>
       results.map((r) =>
         r.status === "fulfilled"
           ? r.value
@@ -274,7 +342,8 @@ export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; p
     fetchPublicIP(),
   ]);
   const webrtcResult = checksResults.find((c) => c.id === "webrtc-leak") as WebRTCLeakResult | undefined;
-  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp };
+  const ipRepResult = checksResults.find((c) => c.id === "ip-reputation") as IPReputationResult | undefined;
+  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData };
 }
 
 export function detectNetworkType(): { type: string; ssidNote: string } {

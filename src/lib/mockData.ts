@@ -1,4 +1,4 @@
-import { RealCheckResult } from "./networkChecks";
+import { RealCheckResult, IPReputationData } from "./networkChecks";
 
 const NETWORK_NAMES = [
   "Cafe_FreeWifi", "Airport_Lounge", "Hotel_Guest", "StarBucks_WiFi",
@@ -40,6 +40,7 @@ export interface ScanResult {
   gatewayIp: string;
   publicIp: string | null;
   webrtcLocalIp?: string;
+  ipReputation?: IPReputationData;
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
@@ -73,6 +74,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "rogue-dhcp": { name: "Captive Portal / Rogue DHCP", icon: "Server" },
   "webrtc-leak": { name: "WebRTC Local IP Leak Detection", icon: "Video" },
   "content-inject": { name: "Content Injection Detection", icon: "Code" },
+  "ip-reputation": { name: "Public IP Reputation", icon: "Fingerprint" },
 };
 
 export function generateSimulatedChecks(): SecurityCheck[] {
@@ -157,13 +159,14 @@ export function buildScanResult(
   cachedSimulated?: SecurityCheck[],
   cachedInfo?: CachedNetworkInfo,
   webrtcLeakedIp?: string,
+  ipReputation?: IPReputationData,
 ): ScanResult {
   const simulated = cachedSimulated || generateSimulatedChecks();
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
   const checks: SecurityCheck[] = [
     ...simulated,
-    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject"].map(
+    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation"].map(
       (id) => liveChecks.find((c) => c.id === id)!
     ).filter(Boolean),
   ];
@@ -183,6 +186,7 @@ export function buildScanResult(
     gatewayIp: info.gatewayIp,
     publicIp,
     webrtcLocalIp: webrtcLeakedIp,
+    ipReputation,
     trustScore,
     trustLabel,
     checks,

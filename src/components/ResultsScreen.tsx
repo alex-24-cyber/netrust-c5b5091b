@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Copy, Network, Lock, Globe, Server, Video, Code,
+  Copy, Network, Lock, Globe, Server, Video, Code, Fingerprint,
 };
 
 function getTrustColor(score: number) {
@@ -53,6 +53,11 @@ const CHECK_DETAILS: Record<string, {
     detected: "The HTTP content injection test found additional scripts, iframes, or suspicious patterns injected into an unencrypted HTTP page that should contain none of these elements.",
     risk: "This network is injecting additional code into your unencrypted web traffic. This could be advertisements, tracking scripts, or malicious payloads. Any website you visit over HTTP (not HTTPS) on this network may be tampered with.",
     actions: ["Only visit HTTPS websites on this network", "Use a VPN to encrypt all your traffic", "Avoid entering sensitive information on any HTTP pages"],
+  },
+  "ip-reputation": {
+    detected: "Your traffic is exiting the internet through a datacenter, VPN, or proxy service rather than a recognised consumer ISP. This is unusual for standard network connections.",
+    risk: "Your traffic is exiting the internet through a datacenter or proxy service rather than a normal ISP. This could mean the network operator is routing your traffic through a remote server — possibly to monitor or modify it. This isn't always malicious (some businesses use VPN concentrators), but on a public Wi-Fi network it's a red flag.",
+    actions: ["Verify with the network operator why traffic is routed through a datacenter", "Use your own VPN to ensure traffic encryption", "Switch to mobile data for sensitive browsing"],
   },
 };
 
@@ -320,6 +325,43 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
           </div>
         </div>
       </TooltipProvider>
+
+      {/* Network Identity */}
+      {!isDemo && result.ipReputation && (
+        <div className="glass-card p-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+            <Fingerprint size={14} /> Network Identity
+            <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+              Live
+            </span>
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Public IP</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.ip}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ISP</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.org}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ASN</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.asn}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Exit Location</p>
+              <p className="text-sm font-mono text-foreground truncate">{result.ipReputation.city}, {result.ipReputation.country}</p>
+            </div>
+            <div className="col-span-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">IP Type</p>
+              <p className={`text-sm font-mono font-medium ${result.ipReputation.isSuspicious ? "text-trust-danger" : "text-trust-safe"}`}>
+                {result.ipReputation.ipType}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Security Checks */}
       <div className="flex flex-col gap-2">
