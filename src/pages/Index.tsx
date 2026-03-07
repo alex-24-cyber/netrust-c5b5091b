@@ -24,7 +24,16 @@ const Index = () => {
   const [state, setState] = useState<AppState>("idle");
   const [activeTab, setActiveTab] = useState("scan");
   const [result, setResult] = useState<ScanResult | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [history, setHistory] = useState<HistoryEntry[]>(() => {
+    try {
+      const stored = localStorage.getItem("nettrust_history");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return parsed.map((e: any) => ({ ...e, timestamp: new Date(e.timestamp) }));
+      }
+    } catch {}
+    return [];
+  });
 
   // Cache: keyed by network type
   const cacheRef = useRef<Record<string, {
@@ -85,15 +94,17 @@ const Index = () => {
     setResult(finalResult);
     setState("results");
 
-    // Add to history
-    setHistory((prev) => [
-      {
-        id: crypto.randomUUID(),
-        result: finalResult,
-        timestamp: new Date(),
-      },
-      ...prev,
-    ]);
+    // Add to history and persist
+    const newEntry: HistoryEntry = {
+      id: crypto.randomUUID(),
+      result: finalResult,
+      timestamp: new Date(),
+    };
+    setHistory((prev) => {
+      const updated = [newEntry, ...prev].slice(0, 50);
+      try { localStorage.setItem("nettrust_history", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   }, [demoMode, demoForce]);
 
   const handleScanAgain = useCallback(() => {
