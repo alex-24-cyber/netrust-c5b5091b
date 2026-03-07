@@ -140,14 +140,14 @@ function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
 }
 
 function calculateScore(checks: SecurityCheck[], jitter?: number): { trustScore: number; trustLabel: string } {
-  const perCheck = checks.length > 0 ? 100 / checks.length : 20;
+  const perCheck = checks.length > 0 ? 100 / checks.length : 11;
   let score = 0;
   for (const c of checks) {
     if (c.passed === true) score += perCheck;
     else if (c.passed === null) score += perCheck / 2;
   }
-  const j = jitter ?? (Math.floor(Math.random() * 5) - 2); // ±2 default
-  const trustScore = Math.max(5, Math.min(100, Math.round(score) + j));
+  const j = jitter ?? (Math.floor(Math.random() * 7) - 3); // ±3
+  const trustScore = Math.max(0, Math.min(100, Math.round(score + j)));
   const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
   return { trustScore, trustLabel };
 }
@@ -165,11 +165,13 @@ export function buildScanResult(
   const simulated = cachedSimulated || generateSimulatedChecks();
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
+  const liveOrdered = ["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly"]
+    .map((id) => liveChecks.find((c) => c.id === id)!)
+    .filter(Boolean);
+
   const checks: SecurityCheck[] = [
+    ...liveOrdered,
     ...simulated,
-    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly"].map(
-      (id) => liveChecks.find((c) => c.id === id)!
-    ).filter(Boolean),
   ];
 
   const { trustScore, trustLabel } = calculateScore(checks);
