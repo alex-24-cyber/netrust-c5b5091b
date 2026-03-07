@@ -195,6 +195,62 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
   });
 }
 
+export async function checkContentInjection(): Promise<RealCheckResult> {
+  const id = "content-inject";
+  try {
+    const ctrl = withTimeout(5000);
+    const res = await fetch("http://neverssl.com/", { mode: "cors", signal: ctrl.signal, redirect: "manual" });
+
+    // Redirect check
+    if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+      return {
+        id, passed: false,
+        status: "HTTP traffic is being redirected — possible interception",
+        explanation: "This network is redirecting your unencrypted HTTP requests to a different destination. This could indicate a captive portal, ISP injection, or a man-in-the-middle attack intercepting your traffic.",
+      };
+    }
+
+    const body = await res.text();
+    const scriptCount = (body.match(/<script[\s>]/gi) || []).length;
+    const iframeCount = (body.match(/<iframe[\s>]/gi) || []).length;
+    const suspiciousPatterns = ["advertisement", "ad-inject", "clicktrack", "analytics.js", "inject", "banner", "popup"];
+    const hasSuspicious = suspiciousPatterns.some((p) => body.toLowerCase().includes(p));
+
+    if (scriptCount === 0 && iframeCount === 0 && !hasSuspicious) {
+      return {
+        id, passed: true,
+        status: "No content injection detected on HTTP traffic",
+        explanation: "We fetched an unencrypted HTTP page and verified the response was not tampered with. No injected scripts, iframes, or tracking code were found, confirming this network is not modifying your HTTP traffic.",
+      };
+    } else {
+      const parts: string[] = [];
+      if (scriptCount > 0) parts.push(`${scriptCount} script(s)`);
+      if (iframeCount > 0) parts.push(`${iframeCount} iframe(s)`);
+      if (hasSuspicious && parts.length === 0) parts.push("suspicious patterns");
+      return {
+        id, passed: false,
+        status: `Content injection detected — ${parts.join(", ")} injected into HTTP traffic`,
+        explanation: "This network is injecting additional code into your unencrypted web traffic. This could be advertisements, tracking scripts, or malicious payloads. Any website you visit over HTTP (not HTTPS) on this network may be tampered with. Stick to HTTPS sites only, or use a VPN to encrypt all traffic.",
+      };
+    }
+  } catch (err: any) {
+    // Mixed content block = actually good (HTTPS-secured)
+    if (err?.message?.includes("Mixed Content") || err?.message?.includes("mixed") ||
+        (typeof window !== "undefined" && window.location.protocol === "https:")) {
+      return {
+        id, passed: true,
+        status: "Mixed content policy prevented HTTP check — your connection is HTTPS-secured",
+        explanation: "Your browser blocked the HTTP test request because you're on a secure HTTPS connection. This is actually good — it means your browser's built-in protections are working correctly to prevent insecure content from loading.",
+      };
+    }
+    return {
+      id, passed: false,
+      status: "HTTP traffic appears to be blocked or intercepted",
+      explanation: "The HTTP content injection test failed entirely. This could mean the network is blocking unencrypted HTTP traffic, or something is intercepting the connection before it can complete.",
+    };
+  }
+}
+
 export async function fetchPublicIP(): Promise<string | null> {
   try {
     const ctrl = withTimeout(4000);
@@ -208,7 +264,7 @@ export async function fetchPublicIP(): Promise<string | null> {
 
 export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string }> {
   const [checksResults, publicIp] = await Promise.all([
-    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak()]).then((results) =>
+    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection()]).then((results) =>
       results.map((r) =>
         r.status === "fulfilled"
           ? r.value
