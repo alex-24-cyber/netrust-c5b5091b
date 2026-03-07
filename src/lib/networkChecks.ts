@@ -330,9 +330,83 @@ export async function fetchPublicIP(): Promise<string | null> {
   }
 }
 
+export interface LatencyResult extends RealCheckResult {
+  latencyDetail?: string;
+}
+
+export async function checkLatencyAnomaly(): Promise<LatencyResult> {
+  const id = "latency-anomaly";
+  const endpoints = [
+    { name: "Google", url: "https://www.google.com" },
+    { name: "Cloudflare", url: "https://www.cloudflare.com" },
+    { name: "1.1.1.1", url: "https://1.1.1.1" },
+  ];
+
+  const rtts: { name: string; ms: number | null }[] = [];
+
+  await Promise.all(
+    endpoints.map(async (ep) => {
+      try {
+        const ctrl = withTimeout(5000);
+        const start = performance.now();
+        await fetch(ep.url, { method: "HEAD", mode: "no-cors", signal: ctrl.signal });
+        const end = performance.now();
+        rtts.push({ name: ep.name, ms: Math.round(end - start) });
+      } catch {
+        rtts.push({ name: ep.name, ms: null });
+      }
+    })
+  );
+
+  const timeouts = rtts.filter((r) => r.ms === null).length;
+  const successful = rtts.filter((r) => r.ms !== null);
+  const detail = rtts.map((r) => `${r.name}: ${r.ms !== null ? r.ms + "ms" : "timeout"}`).join(" | ");
+
+  if (timeouts >= 2) {
+    return {
+      id, passed: false,
+      latencyDetail: detail,
+      status: "Multiple endpoints unreachable — severe network restriction detected",
+      explanation: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.",
+    };
+  }
+
+  if (successful.length === 0) {
+    return {
+      id, passed: false, latencyDetail: detail,
+      status: "All latency checks failed",
+      explanation: "None of the latency probes completed successfully. The network may be severely restricted or offline.",
+    };
+  }
+
+  const avg = Math.round(successful.reduce((s, r) => s + r.ms!, 0) / successful.length);
+  const avgDetail = `${detail} | Average: ${avg}ms`;
+
+  if (avg < 500) {
+    return {
+      id, passed: true, latencyDetail: avgDetail,
+      status: `Network latency normal — avg ${avg}ms to major endpoints`,
+      explanation: `Round-trip latency to major internet services averaged ${avg}ms, which is within normal range. This suggests your traffic is taking a direct path to the internet without suspicious additional routing.`,
+    };
+  } else if (avg <= 1000) {
+    // Amber/warning — use passed: null to get amber treatment
+    return {
+      id, passed: null, latencyDetail: avgDetail,
+      status: `Elevated latency — avg ${avg}ms — possible traffic routing`,
+      explanation: `Your traffic is averaging ${avg}ms to reach major services, which is higher than expected. This could indicate your traffic is being routed through a proxy or VPN tunnel, or simply a congested network. Monitor for other suspicious indicators.`,
+    };
+  } else {
+    return {
+      id, passed: false, latencyDetail: avgDetail,
+      status: `Abnormal latency detected — avg ${avg}ms (expected <500ms)`,
+      explanation: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.",
+    };
+  }
+}
+
 export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData }> {
   const [checksResults, publicIp] = await Promise.all([
-    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection(), checkIPReputation()]).then((results) =>
+    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection(), checkIPReputation(), checkLatencyAnomaly()]).then((results) =>
       results.map((r) =>
         r.status === "fulfilled"
           ? r.value

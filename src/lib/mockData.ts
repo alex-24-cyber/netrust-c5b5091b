@@ -75,6 +75,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "webrtc-leak": { name: "WebRTC Local IP Leak Detection", icon: "Video" },
   "content-inject": { name: "Content Injection Detection", icon: "Code" },
   "ip-reputation": { name: "Public IP Reputation", icon: "Fingerprint" },
+  "latency-anomaly": { name: "Latency Anomaly Detection", icon: "Timer" },
 };
 
 export function generateSimulatedChecks(): SecurityCheck[] {
@@ -166,7 +167,7 @@ export function buildScanResult(
 
   const checks: SecurityCheck[] = [
     ...simulated,
-    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation"].map(
+    ...["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly"].map(
       (id) => liveChecks.find((c) => c.id === id)!
     ).filter(Boolean),
   ];
