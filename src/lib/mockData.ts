@@ -197,6 +197,7 @@ export function buildScanResult(
     trustScore,
     trustLabel,
     checks,
+    scanLog,
   };
 }
 
