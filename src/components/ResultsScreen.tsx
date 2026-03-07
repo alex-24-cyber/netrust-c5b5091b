@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Copy, Network, Lock, Globe, Server,
+  Copy, Network, Lock, Globe, Server, Video,
 };
 
 function getTrustColor(score: number) {
@@ -43,6 +43,11 @@ const CHECK_DETAILS: Record<string, {
     detected: "The network connectivity check was intercepted or redirected, indicating a captive portal or rogue DHCP server is active. Your traffic may be routed through an unauthorised gateway.",
     risk: "A rogue DHCP server can assign your device a malicious gateway, routing all your internet traffic through an attacker's machine. This gives them complete visibility into your browsing activity.",
     actions: ["Disconnect from this network", "Verify the network with the venue staff", "Use mobile data for any sensitive browsing"],
+  },
+  "webrtc-leak": {
+    detected: "Your browser exposed your local network IP address through WebRTC ICE candidate gathering. This is a well-known privacy leak that can reveal your position on the local network.",
+    risk: "Attackers on this network can use your leaked local IP to map your device's position and target you directly with network-level attacks such as ARP spoofing or port scanning.",
+    actions: ["Install a browser extension that blocks WebRTC leaks", "Disable WebRTC in your browser settings", "Use a VPN to mask your local network identity"],
   },
 };
 
@@ -224,6 +229,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         { label: "SSID", value: "Not available", restricted: true },
         { label: "BSSID", value: "Not available", restricted: true },
         ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
+        ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" as const }] : []),
         { label: "Encryption", value: result.encryption },
       ];
 
