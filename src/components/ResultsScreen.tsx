@@ -49,6 +49,11 @@ const CHECK_DETAILS: Record<string, {
     risk: "Attackers on this network can use your leaked local IP to map your device's position and target you directly with network-level attacks such as ARP spoofing or port scanning.",
     actions: ["Install a browser extension that blocks WebRTC leaks", "Disable WebRTC in your browser settings", "Use a VPN to mask your local network identity"],
   },
+  "content-inject": {
+    detected: "The HTTP content injection test found additional scripts, iframes, or suspicious patterns injected into an unencrypted HTTP page that should contain none of these elements.",
+    risk: "This network is injecting additional code into your unencrypted web traffic. This could be advertisements, tracking scripts, or malicious payloads. Any website you visit over HTTP (not HTTPS) on this network may be tampered with.",
+    actions: ["Only visit HTTPS websites on this network", "Use a VPN to encrypt all your traffic", "Avoid entering sensitive information on any HTTP pages"],
+  },
 };
 
 interface ResultsScreenProps {
