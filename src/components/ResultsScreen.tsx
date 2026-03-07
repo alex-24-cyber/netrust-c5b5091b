@@ -217,6 +217,8 @@ const CheckModal = ({ check, onClose }: CheckModalProps) => {
               </>
             )}
 
+            {check.checkType === "live" && <EvidenceBlock evidence={check.evidence} />}
+
             <button
               onClick={onClose}
               className={`w-full py-3 rounded-xl font-semibold text-sm transition-transform active:scale-[0.98] border ${
