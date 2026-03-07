@@ -164,6 +164,51 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         })}
       </div>
 
+      {/* Recommendations */}
+      <div className={`glass-card p-4 border-l-4 ${
+        color === "danger" ? "border-l-trust-danger" : color === "warning" ? "border-l-trust-warning" : "border-l-trust-safe"
+      }`}>
+        <div className="flex items-center gap-2 mb-3">
+          {color === "danger" ? (
+            <AlertTriangle size={18} className="text-trust-danger" />
+          ) : color === "warning" ? (
+            <AlertTriangle size={18} className="text-trust-warning" />
+          ) : (
+            <Shield size={18} className="text-trust-safe" />
+          )}
+          <h3 className={`text-sm font-semibold ${textClass}`}>
+            {color === "danger" ? "High Risk" : color === "warning" ? "Proceed With Caution" : "Network Looks Good"}
+          </h3>
+        </div>
+        <ul className="flex flex-col gap-2">
+          {(color === "danger"
+            ? [
+                "Disconnect from this network immediately",
+                "Do not access banking, email, or any accounts",
+                "Switch to mobile data or use a trusted VPN",
+              ]
+            : color === "warning"
+            ? [
+                "Avoid sensitive logins without a VPN",
+                "Some checks raised concerns — review details above",
+                "Consider switching to mobile data for sensitive tasks",
+              ]
+            : [
+                "No significant threats detected",
+                "Standard security practices still recommended",
+                "Safe for general browsing — use a VPN for extra protection",
+              ]
+          ).map((tip) => (
+            <li key={tip} className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
+              <span className={`mt-1 w-1.5 h-1.5 rounded-full shrink-0 ${
+                color === "danger" ? "bg-trust-danger" : color === "warning" ? "bg-trust-warning" : "bg-trust-safe"
+              }`} />
+              {tip}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {/* Scan Again */}
       <button
         onClick={onScanAgain}
