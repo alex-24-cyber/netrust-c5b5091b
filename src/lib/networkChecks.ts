@@ -639,13 +639,36 @@ export async function runAllRealChecks(): Promise<{
   return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData, scanLog: log };
 }
 
-export function detectNetworkType(): { type: string; ssidNote: string } {
-  const conn = (navigator as any).connection;
-  if (conn?.type) {
+export interface ConnectionInfo {
+  type: string;
+  ssidNote: string;
+  effectiveType?: string;
+  downlink?: number;
+  rtt?: number;
+  apiSupported: boolean;
+}
+
+export function detectNetworkType(): ConnectionInfo {
+  const conn = (navigator as any).connection
+    || (navigator as any).mozConnection
+    || (navigator as any).webkitConnection;
+
+  if (conn) {
+    const rawType = conn.type;
+    const type = rawType === "wifi" ? "Wi-Fi"
+      : rawType === "cellular" ? "Cellular"
+      : rawType === "ethernet" ? "Ethernet"
+      : rawType === "bluetooth" ? "Bluetooth"
+      : rawType || "Unknown";
+
     return {
-      type: conn.type === "wifi" ? "Wi-Fi" : conn.type === "cellular" ? "Cellular" : conn.type === "ethernet" ? "Ethernet" : conn.type,
+      type,
       ssidNote: "SSID hidden by browser for privacy",
+      effectiveType: conn.effectiveType || undefined,
+      downlink: conn.downlink != null ? conn.downlink : undefined,
+      rtt: conn.rtt != null ? conn.rtt : undefined,
+      apiSupported: true,
     };
   }
-  return { type: "Unknown", ssidNote: "SSID hidden by browser for privacy" };
+  return { type: "Unknown", ssidNote: "SSID hidden by browser for privacy", apiSupported: false };
 }
