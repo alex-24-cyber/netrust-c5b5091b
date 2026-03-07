@@ -195,25 +195,29 @@ export async function checkIPReputation(): Promise<IPReputationResult> {
     const country = data.country_name || data.country || "Unknown";
 
     const reputationData: IPReputationData = {
-      ip: data.ip || "Unknown",
-      org,
-      asn: data.asn || "Unknown",
-      city,
-      region: data.region || "",
-      country,
-      isSuspicious,
-      ipType,
+      ip: data.ip || "Unknown", org,
+      asn: data.asn || "Unknown", city,
+      region: data.region || "", country,
+      isSuspicious, ipType,
+    };
+
+    const evidence: Record<string, string> = {
+      "Public IP": reputationData.ip,
+      "ISP": org,
+      "ASN": reputationData.asn,
+      "Exit": `${city}, ${country}`,
+      "Classification": ipType,
     };
 
     if (isSuspicious) {
       return {
-        id, passed: false, reputationData,
+        id, passed: false, reputationData, evidence,
         status: `Traffic exiting through ${org} — possible proxy or VPN redirect`,
         explanation: "Your traffic is exiting the internet through a datacenter or proxy service rather than a normal ISP. This could mean the network operator is routing your traffic through a remote server — possibly to monitor or modify it. This isn't always malicious (some businesses use VPN concentrators), but on a public Wi-Fi network it's a red flag.",
       };
     } else {
       return {
-        id, passed: true, reputationData,
+        id, passed: true, reputationData, evidence,
         status: `Network exit point verified — ${org}, ${city}, ${country}`,
         explanation: `Your traffic is exiting the internet through ${org}, a recognised ISP in ${city}, ${country}. This is consistent with a normal consumer internet connection and shows no signs of traffic redirection through proxy or datacenter infrastructure.`,
       };
@@ -221,6 +225,7 @@ export async function checkIPReputation(): Promise<IPReputationResult> {
   } catch {
     return {
       id, passed: null,
+      evidence: { "Error": "Request failed or timed out" },
       status: "Could not verify network exit point",
       explanation: "The IP reputation lookup failed or timed out. We couldn't determine whether your traffic is exiting through a normal ISP or a suspicious proxy/datacenter.",
     };
@@ -236,6 +241,7 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
   if (typeof RTCPeerConnection === "undefined") {
     return {
       id, passed: null,
+      evidence: { "Error": "RTCPeerConnection not available" },
       status: "Could not verify — browser may not support WebRTC",
       explanation: "Your browser does not support RTCPeerConnection, so we couldn't test for WebRTC IP leaks.",
     };
@@ -246,6 +252,7 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
       try { pc.close(); } catch {}
       resolve({
         id, passed: null,
+        evidence: { "Error": "ICE gathering timed out" },
         status: "Could not verify — WebRTC check timed out",
         explanation: "The WebRTC leak detection timed out. This may indicate browser restrictions or network issues preventing ICE candidate gathering.",
       });
@@ -254,10 +261,19 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
     pc.createDataChannel("");
     const foundIps: string[] = [];
+    const mdnsAddresses: string[] = [];
+    let candidateCount = 0;
 
     pc.onicecandidate = (e) => {
       if (!e.candidate) return;
-      const match = e.candidate.candidate.match(
+      candidateCount++;
+      const candidateStr = e.candidate.candidate;
+      // Check for mDNS
+      const mdnsMatch = candidateStr.match(/([a-f0-9-]+\.local)/);
+      if (mdnsMatch && !mdnsAddresses.includes(mdnsMatch[1])) {
+        mdnsAddresses.push(mdnsMatch[1]);
+      }
+      const match = candidateStr.match(
         /([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/
       );
       if (match) {
@@ -275,15 +291,22 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
         const privateIp = foundIps.find((ip) =>
           /^(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(ip)
         );
+
+        const evidence: Record<string, string> = {
+          "ICE Candidates found": String(candidateCount),
+          "Local IPs exposed": foundIps.length > 0 ? foundIps.join(", ") : "None (mDNS only)",
+          "mDNS addresses": mdnsAddresses.length > 0 ? mdnsAddresses.join(", ") : "None",
+        };
+
         if (privateIp) {
           resolve({
-            id, passed: false, leakedIp: privateIp,
+            id, passed: false, leakedIp: privateIp, evidence,
             status: `WebRTC is leaking your local IP: ${privateIp}`,
             explanation: "Your browser is leaking your local network IP address through WebRTC, a technology used for video calls. Attackers on this network can use this to map your device's position on the network and target you directly. Consider using a browser extension that blocks WebRTC leaks, or disable WebRTC in your browser settings.",
           });
         } else {
           resolve({
-            id, passed: true,
+            id, passed: true, evidence,
             status: "WebRTC properly secured — no local IP leaked",
             explanation: "We attempted to extract your local IP address via WebRTC ICE candidate gathering. Only mDNS (.local) addresses or no addresses were found, meaning your browser is properly protecting your local network identity.",
           });
@@ -296,6 +319,7 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
       pc.close();
       resolve({
         id, passed: null,
+        evidence: { "Error": "WebRTC offer creation failed" },
         status: "Could not verify — WebRTC offer failed",
         explanation: "The WebRTC leak check failed to create an offer. This may be due to browser privacy settings.",
       });
