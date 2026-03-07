@@ -1,4 +1,4 @@
-import { RealCheckResult, IPReputationData, ScanLogEntry } from "./networkChecks";
+import { RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "./networkChecks";
 
 const NETWORK_NAMES = [
   "Cafe_FreeWifi", "Airport_Lounge", "Hotel_Guest", "StarBucks_WiFi",
@@ -42,6 +42,7 @@ export interface ScanResult {
   publicIp: string | null;
   webrtcLocalIp?: string;
   ipReputation?: IPReputationData;
+  connectionInfo?: ConnectionInfo;
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
@@ -157,8 +158,7 @@ function calculateScore(checks: SecurityCheck[], jitter?: number): { trustScore:
 
 export function buildScanResult(
   realResults: RealCheckResult[],
-  networkType: string,
-  ssidNote: string,
+  connectionInfo: ConnectionInfo,
   publicIp: string | null,
   cachedSimulated?: SecurityCheck[],
   cachedInfo?: CachedNetworkInfo,
@@ -184,8 +184,8 @@ export function buildScanResult(
 
   return {
     networkName: "Current Network",
-    networkType,
-    ssidNote,
+    networkType: connectionInfo.type,
+    ssidNote: connectionInfo.ssidNote,
     bssid: info.bssid,
     channel: info.channel,
     signalStrength: info.signalStrength,
@@ -194,6 +194,7 @@ export function buildScanResult(
     publicIp,
     webrtcLocalIp: webrtcLeakedIp,
     ipReputation,
+    connectionInfo,
     trustScore,
     trustLabel,
     checks,
