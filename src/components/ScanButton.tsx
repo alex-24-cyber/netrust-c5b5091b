@@ -25,7 +25,7 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
   const [messageFade, setMessageFade] = useState(true);
   const [finalising, setFinalising] = useState(false);
 
-  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null } | null>(null);
+  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string } | null>(null);
   const realChecksResolvedRef = useRef(false);
   const animDoneRef = useRef(false);
 
@@ -128,7 +128,7 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
       if (!demoMode) {
         const { type, ssidNote } = detectNetworkType();
         const realData = realChecksRef.current || { checks: [], publicIp: null };
-        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo);
+        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp);
         setScanning(false);
         setShowComplete(false);
         setFinalising(false);
