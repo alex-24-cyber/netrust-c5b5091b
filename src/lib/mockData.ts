@@ -38,9 +38,11 @@ export interface ScanResult {
   signalStrength: number;
   encryption: string;
   gatewayIp: string;
+  publicIp: string | null;
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
+  isDemo?: boolean;
 }
 
 const SIMULATED_CHECKS = [

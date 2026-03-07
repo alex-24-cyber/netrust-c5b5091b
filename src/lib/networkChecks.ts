@@ -119,13 +119,29 @@ export async function checkCaptivePortal(): Promise<RealCheckResult> {
   }
 }
 
-export async function runAllRealChecks(): Promise<RealCheckResult[]> {
-  const results = await Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal()]);
-  return results.map((r) =>
-    r.status === "fulfilled"
-      ? r.value
-      : { id: "unknown", passed: null, status: "Check failed", explanation: "An unexpected error occurred." }
-  );
+export async function fetchPublicIP(): Promise<string | null> {
+  try {
+    const ctrl = withTimeout(4000);
+    const res = await fetch("https://api.ipify.org?format=json", { signal: ctrl.signal });
+    const data = await res.json();
+    return data.ip || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null }> {
+  const [checksResults, publicIp] = await Promise.all([
+    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal()]).then((results) =>
+      results.map((r) =>
+        r.status === "fulfilled"
+          ? r.value
+          : { id: "unknown", passed: null, status: "Check failed", explanation: "An unexpected error occurred." }
+      )
+    ),
+    fetchPublicIP(),
+  ]);
+  return { checks: checksResults, publicIp };
 }
 
 export function detectNetworkType(): { type: string; ssidNote: string } {
