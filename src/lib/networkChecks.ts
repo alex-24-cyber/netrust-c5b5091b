@@ -386,20 +386,19 @@ export async function checkLatencyAnomaly(): Promise<LatencyResult> {
     return {
       id, passed: true, latencyDetail: avgDetail,
       status: `Network latency normal — avg ${avg}ms to major endpoints`,
-      explanation: `Round-trip latency to major internet services averaged ${avg}ms, which is within normal range. This suggests your traffic is taking a direct path to the internet without suspicious additional routing.`,
+      explanation: `Round-trip latency to major internet services averaged ${avg}ms, which is within normal range. This suggests your traffic is taking a direct path to the internet without suspicious additional routing.\n\n${avgDetail}`,
     };
   } else if (avg <= 1000) {
-    // Amber/warning — use passed: null to get amber treatment
     return {
       id, passed: null, latencyDetail: avgDetail,
       status: `Elevated latency — avg ${avg}ms — possible traffic routing`,
-      explanation: `Your traffic is averaging ${avg}ms to reach major services, which is higher than expected. This could indicate your traffic is being routed through a proxy or VPN tunnel, or simply a congested network. Monitor for other suspicious indicators.`,
+      explanation: `Your traffic is averaging ${avg}ms to reach major services, which is higher than expected. This could indicate your traffic is being routed through a proxy or VPN tunnel, or simply a congested network. Monitor for other suspicious indicators.\n\n${avgDetail}`,
     };
   } else {
     return {
       id, passed: false, latencyDetail: avgDetail,
       status: `Abnormal latency detected — avg ${avg}ms (expected <500ms)`,
-      explanation: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.",
+      explanation: `Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.\n\n${avgDetail}`,
     };
   }
 }
