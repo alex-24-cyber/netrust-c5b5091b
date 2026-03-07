@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import ScanLog from "@/components/ScanLog";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -251,8 +251,37 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
 
   const isDemo = result.isDemo;
   const restrictedTooltip = "Browsers restrict access to SSID and BSSID for privacy. The security checks below are running live against your current network connection.";
+  const connInfo = result.connectionInfo;
+  const isCellular = connInfo?.type === "Cellular";
 
-  const networkInfo = isDemo
+  const connectionIcon = connInfo?.type === "Wi-Fi" ? Wifi
+    : connInfo?.type === "Cellular" ? Signal
+    : connInfo?.type === "Ethernet" ? Cable
+    : HelpCircle;
+
+  // Detected fields (from Network Information API)
+  const detectedInfo: { label: string; value: string; icon?: React.ElementType; badge?: string; restricted?: boolean; subtitle?: string }[] = isDemo
+    ? []
+    : [
+        {
+          label: "Connection Type",
+          value: connInfo?.apiSupported ? connInfo.type : "Unknown (API not supported by this browser)",
+          icon: connectionIcon,
+        },
+        ...(connInfo?.effectiveType ? [{ label: "Effective Speed", value: connInfo.effectiveType.toUpperCase() }] : []),
+        ...(connInfo?.downlink != null ? [{ label: "Est. Bandwidth", value: `${connInfo.downlink} Mbps` }] : []),
+        ...(connInfo?.rtt != null ? [{ label: "Est. Latency", value: `${connInfo.rtt} ms` }] : []),
+        {
+          label: "SSID",
+          value: "Current Network",
+          subtitle: "Browser privacy policy hides the actual network name",
+        },
+        ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
+        ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" as const }] : []),
+      ];
+
+  // Simulated fields (fake network metadata)
+  const simulatedInfo = isDemo
     ? [
         { label: "SSID", value: result.networkName, badge: "demo" },
         { label: "Type", value: result.networkType },
@@ -263,12 +292,11 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         { label: "Gateway", value: result.gatewayIp, badge: "demo" },
       ]
     : [
-        { label: "Connection Type", value: result.networkType },
-        { label: "SSID", value: "Not available", restricted: true },
         { label: "BSSID", value: "Not available", restricted: true },
-        ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
-        ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" as const }] : []),
+        { label: "Channel", value: String(result.channel) },
+        { label: "Signal", value: `${result.signalStrength} dBm` },
         { label: "Encryption", value: result.encryption },
+        { label: "Gateway", value: result.gatewayIp },
       ];
 
   return (
@@ -313,8 +341,50 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
               </span>
             )}
           </h3>
+
+          {/* Detected section (real API data) */}
+          {!isDemo && detectedInfo.length > 0 && (
+            <>
+              <p className="text-[9px] uppercase tracking-widest text-muted-foreground/60 font-semibold mb-2 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                Detected
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {detectedInfo.map((item) => (
+                  <div key={item.label}>
+                    <div className="flex items-center gap-1">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
+                      {item.badge === "live" && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1 py-0 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                          <span className="w-1 h-1 rounded-full bg-trust-safe animate-pulse" />
+                          Live
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {item.icon && <item.icon size={13} className="text-muted-foreground shrink-0" />}
+                      <p className="text-sm font-mono truncate text-foreground">{item.value}</p>
+                    </div>
+                    {item.subtitle && (
+                      <p className="text-[9px] text-muted-foreground/60 mt-0.5">{item.subtitle}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Divider between detected and simulated */}
+              <div className="border-t border-border/50 my-3" />
+            </>
+          )}
+
+          {/* Simulated section */}
+          {!isDemo && (
+            <p className="text-[9px] uppercase tracking-widest text-muted-foreground/60 font-semibold mb-2">
+              Simulated
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
-            {networkInfo.map((item) => (
+            {simulatedInfo.map((item) => (
               <div key={item.label}>
                 <div className="flex items-center gap-1">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{item.label}</p>
@@ -335,12 +405,6 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                       fake
                     </span>
                   )}
-                  {(item as any).badge === "live" && (
-                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1 py-0 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
-                      <span className="w-1 h-1 rounded-full bg-trust-safe animate-pulse" />
-                      Live
-                    </span>
-                  )}
                 </div>
                 <p className={`text-sm font-mono truncate ${(item as any).restricted ? "text-muted-foreground italic" : "text-foreground"}`}>
                   {item.value}
@@ -352,6 +416,14 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
             ))}
           </div>
         </div>
+
+        {/* Cellular note */}
+        {!isDemo && isCellular && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-trust-safe/10 border border-trust-safe/20">
+            <Signal size={14} className="text-trust-safe shrink-0" />
+            <p className="text-xs text-trust-safe">You're on mobile data — most Wi-Fi attacks don't apply</p>
+          </div>
+        )}
       </TooltipProvider>
 
       {/* Network Identity */}
