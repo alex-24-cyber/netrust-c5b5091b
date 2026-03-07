@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { runAllRealChecks, detectNetworkType, RealCheckResult, IPReputationData } from "@/lib/networkChecks";
+import { runAllRealChecks, detectNetworkType, RealCheckResult, IPReputationData, ScanLogEntry } from "@/lib/networkChecks";
 import { buildScanResult, ScanResult, SecurityCheck, CachedNetworkInfo } from "@/lib/mockData";
 
 interface ScanButtonProps {
@@ -25,7 +25,7 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
   const [messageFade, setMessageFade] = useState(true);
   const [finalising, setFinalising] = useState(false);
 
-  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData } | null>(null);
+  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[] } | null>(null);
   const realChecksResolvedRef = useRef(false);
   const animDoneRef = useRef(false);
 
@@ -127,8 +127,8 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
     const timer = setTimeout(() => {
       if (!demoMode) {
         const { type, ssidNote } = detectNetworkType();
-        const realData = realChecksRef.current || { checks: [], publicIp: null };
-        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp, realData.ipReputation);
+        const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
+        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
         setScanning(false);
         setShowComplete(false);
         setFinalising(false);

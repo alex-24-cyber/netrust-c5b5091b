@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
+import ScanLog from "@/components/ScanLog";
 import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -509,6 +510,12 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
           </div>
         );
       })()}
+
+
+      {/* Scan Log */}
+      {result.scanLog && result.scanLog.length > 0 && (
+        <ScanLog entries={result.scanLog} />
+      )}
 
       {/* Scan Again */}
       <button

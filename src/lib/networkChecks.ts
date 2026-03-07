@@ -488,9 +488,134 @@ export async function checkLatencyAnomaly(): Promise<LatencyResult> {
   }
 }
 
-export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData }> {
+export interface ScanLogEntry {
+  timestamp: number;
+  message: string;
+  type: "info" | "pass" | "fail" | "warn";
+}
+
+export async function runAllRealChecks(): Promise<{
+  checks: RealCheckResult[];
+  publicIp: string | null;
+  webrtcLeakedIp?: string;
+  ipReputation?: IPReputationData;
+  scanLog: ScanLogEntry[];
+}> {
+  const scanStart = performance.now();
+  const log: ScanLogEntry[] = [];
+  const addLog = (msg: string, type: ScanLogEntry["type"] = "info") => {
+    log.push({ timestamp: performance.now() - scanStart, message: msg, type });
+  };
+
+  addLog("Scan initiated");
+  addLog("Starting 7 live checks in parallel...");
+
+  // Wrap each check with logging
+  const wrapCheck = async <T extends RealCheckResult>(
+    label: string,
+    startMessages: string[],
+    fn: () => Promise<T>,
+    onResult: (r: T) => void,
+  ): Promise<T> => {
+    startMessages.forEach((m) => addLog(m));
+    const result = await fn();
+    onResult(result);
+    return result;
+  };
+
   const [checksResults, publicIp] = await Promise.all([
-    Promise.allSettled([checkDNS(), checkSSL(), checkCaptivePortal(), checkWebRTCLeak(), checkContentInjection(), checkIPReputation(), checkLatencyAnomaly()]).then((results) =>
+    Promise.allSettled([
+      wrapCheck("DNS", [
+        "DNS → Querying dns.google/resolve?name=example.com",
+        "DNS → Querying cloudflare-dns.com/dns-query",
+      ], checkDNS, (r) => {
+        if (r.evidence) {
+          if (r.evidence["Google DNS"]) addLog(`DNS → Google DNS responded: ${r.evidence["Google DNS"]}`);
+          if (r.evidence["Cloudflare DNS"]) addLog(`DNS → Cloudflare DNS responded: ${r.evidence["Cloudflare DNS"]}`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`DNS → ${r.evidence?.["Result"] || (r.passed === true ? "IPs match" : "Check failed")} — ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("SSL", [
+        "SSL → Probing google.com (HTTPS HEAD)",
+        "SSL → Probing cloudflare.com (HTTPS HEAD)",
+        "SSL → Probing 1.1.1.1 (HTTPS HEAD)",
+      ], checkSSL, (r) => {
+        if (r.evidence) {
+          Object.entries(r.evidence).filter(([k]) => k !== "Error").forEach(([k, v]) => {
+            addLog(`SSL → ${k} responded (${v})`);
+          });
+        }
+        const successes = r.evidence ? Object.values(r.evidence).filter((v) => v.startsWith("OK")).length : 0;
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`SSL → ${successes}/3 HTTPS connections succeeded — ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("PORTAL", [
+        "PORTAL → Fetching connectivitycheck.gstatic.com/generate_204",
+      ], checkCaptivePortal, (r) => {
+        const status = r.evidence?.["Received"] || "unknown";
+        addLog(`PORTAL → Status ${status} received`);
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`PORTAL → ${r.passed === true ? "No captive portal — PASS" : r.passed === false ? "Interception detected — FAIL" : "Inconclusive — WARN"}`, resultType);
+      }),
+
+      wrapCheck("WebRTC", [
+        "WebRTC → Creating RTCPeerConnection (STUN: stun.l.google.com)",
+      ], checkWebRTCLeak, (r) => {
+        if (r.evidence) {
+          const candidates = r.evidence["ICE Candidates found"];
+          if (candidates) addLog(`WebRTC → ${candidates} ICE candidate(s) received`);
+          const ips = r.evidence["Local IPs exposed"];
+          if (ips && ips !== "None (mDNS only)") addLog(`WebRTC → Local IP found: ${ips}`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`WebRTC → ${r.passed === true ? "No IP leaked — PASS" : r.passed === false ? "Private IP leaked — FAIL" : "Inconclusive — WARN"}`, resultType);
+      }),
+
+      wrapCheck("INJECT", [
+        "INJECT → Fetching http://neverssl.com (injection test)",
+      ], checkContentInjection, (r) => {
+        if (r.evidence) {
+          const size = r.evidence["Response size"];
+          if (size) addLog(`INJECT → Response received (${size})`);
+          const scripts = r.evidence["<script> tags found"] || "0";
+          const iframes = r.evidence["<iframe> tags found"] || "0";
+          addLog(`INJECT → ${scripts} scripts, ${iframes} iframes found`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`INJECT → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("IP-REP", [
+        "IP-REP → Querying ipapi.co/json",
+      ], checkIPReputation, (r) => {
+        if (r.evidence) {
+          const isp = r.evidence["ISP"];
+          const exit = r.evidence["Exit"];
+          if (isp) addLog(`IP-REP → Response: ${isp}, ${exit || "Unknown"}`);
+          const cls = r.evidence["Classification"];
+          if (cls) addLog(`IP-REP → ${cls} detected`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`IP-REP → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("LATENCY", [
+        "LATENCY → Starting RTT measurements",
+      ], checkLatencyAnomaly, (r) => {
+        if (r.evidence) {
+          Object.entries(r.evidence)
+            .filter(([k]) => k !== "Baseline threshold" && k !== "Average")
+            .forEach(([k, v]) => addLog(`LATENCY → ${k}: ${v}`));
+          const avg = r.evidence["Average"];
+          if (avg) addLog(`LATENCY → All probes complete (avg: ${avg})`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`LATENCY → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+    ]).then((results) =>
       results.map((r) =>
         r.status === "fulfilled"
           ? r.value
@@ -499,9 +624,19 @@ export async function runAllRealChecks(): Promise<{ checks: RealCheckResult[]; p
     ),
     fetchPublicIP(),
   ]);
+
+  addLog("Generating simulated checks (Evil Twin, ARP Spoofing)...");
+  
   const webrtcResult = checksResults.find((c) => c.id === "webrtc-leak") as WebRTCLeakResult | undefined;
   const ipRepResult = checksResults.find((c) => c.id === "ip-reputation") as IPReputationResult | undefined;
-  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData };
+
+  const passed = checksResults.filter((c) => c.passed === true).length;
+  addLog(`All checks complete. ${passed + 2}/9 checks evaluated.`);
+
+  // Sort log by timestamp
+  log.sort((a, b) => a.timestamp - b.timestamp);
+
+  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData, scanLog: log };
 }
 
 export function detectNetworkType(): { type: string; ssidNote: string } {
