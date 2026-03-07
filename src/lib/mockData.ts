@@ -149,6 +149,7 @@ export function buildScanResult(
   realResults: RealCheckResult[],
   networkType: string,
   ssidNote: string,
+  publicIp: string | null,
   cachedSimulated?: SecurityCheck[],
   cachedInfo?: CachedNetworkInfo,
 ): ScanResult {
@@ -175,6 +176,7 @@ export function buildScanResult(
     signalStrength: info.signalStrength,
     encryption: numFails >= 3 ? "Open" : info.encryption,
     gatewayIp: info.gatewayIp,
+    publicIp,
     trustScore,
     trustLabel,
     checks,
