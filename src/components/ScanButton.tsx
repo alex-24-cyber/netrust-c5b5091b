@@ -25,7 +25,7 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
   const [messageFade, setMessageFade] = useState(true);
   const [finalising, setFinalising] = useState(false);
 
-  const realChecksRef = useRef<RealCheckResult[] | null>(null);
+  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null } | null>(null);
   const realChecksResolvedRef = useRef(false);
   const animDoneRef = useRef(false);
 
@@ -127,8 +127,8 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
     const timer = setTimeout(() => {
       if (!demoMode) {
         const { type, ssidNote } = detectNetworkType();
-        const realResults = realChecksRef.current || [];
-        const result = buildScanResult(realResults, type, ssidNote, cachedSimulated, cachedNetworkInfo);
+        const realData = realChecksRef.current || { checks: [], publicIp: null };
+        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo);
         setScanning(false);
         setShowComplete(false);
         setFinalising(false);

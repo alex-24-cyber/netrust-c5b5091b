@@ -38,9 +38,11 @@ export interface ScanResult {
   signalStrength: number;
   encryption: string;
   gatewayIp: string;
+  publicIp: string | null;
   trustScore: number;
   trustLabel: string;
   checks: SecurityCheck[];
+  isDemo?: boolean;
 }
 
 const SIMULATED_CHECKS = [
@@ -147,6 +149,7 @@ export function buildScanResult(
   realResults: RealCheckResult[],
   networkType: string,
   ssidNote: string,
+  publicIp: string | null,
   cachedSimulated?: SecurityCheck[],
   cachedInfo?: CachedNetworkInfo,
 ): ScanResult {
@@ -173,6 +176,7 @@ export function buildScanResult(
     signalStrength: info.signalStrength,
     encryption: numFails >= 3 ? "Open" : info.encryption,
     gatewayIp: info.gatewayIp,
+    publicIp,
     trustScore,
     trustLabel,
     checks,
@@ -218,6 +222,7 @@ export function generateScanResult(): ScanResult {
     signalStrength: -(Math.floor(Math.random() * 50) + 30),
     encryption,
     gatewayIp: randomIp(),
+    publicIp: null,
     trustScore, trustLabel, checks,
   };
 }
