@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { runAllRealChecks, detectNetworkType, RealCheckResult, IPReputationData, ScanLogEntry } from "@/lib/networkChecks";
+import { runAllRealChecks, detectNetworkType, RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "@/lib/networkChecks";
 import { buildScanResult, ScanResult, SecurityCheck, CachedNetworkInfo } from "@/lib/mockData";
 
 interface ScanButtonProps {
@@ -126,9 +126,9 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
     if (!showComplete || !scanning) return;
     const timer = setTimeout(() => {
       if (!demoMode) {
-        const { type, ssidNote } = detectNetworkType();
+        const connInfo = detectNetworkType();
         const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
-        const result = buildScanResult(realData.checks, type, ssidNote, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
+        const result = buildScanResult(realData.checks, connInfo, realData.publicIp, cachedSimulated, cachedNetworkInfo, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
         setScanning(false);
         setShowComplete(false);
         setFinalising(false);
