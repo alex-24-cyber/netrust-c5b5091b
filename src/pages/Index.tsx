@@ -3,9 +3,12 @@ import { Shield } from "lucide-react";
 import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
 import AboutScreen from "@/components/AboutScreen";
+import HistoryScreen from "@/components/HistoryScreen";
+import SplashScreen from "@/components/SplashScreen";
 import BottomNav from "@/components/BottomNav";
-import { ScanResult, SecurityCheck, CachedNetworkInfo, generateSimulatedChecks, generateNetworkInfo } from "@/lib/mockData";
+import { ScanResult, SecurityCheck, CachedNetworkInfo } from "@/lib/mockData";
 import { DemoForce, generateForcedResult } from "@/lib/demoMode";
+import type { HistoryEntry } from "@/components/HistoryScreen";
 
 type AppState = "idle" | "scanning" | "results";
 
@@ -17,9 +20,11 @@ const FORCE_OPTIONS: { value: DemoForce; label: string }[] = [
 ];
 
 const Index = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const [state, setState] = useState<AppState>("idle");
   const [activeTab, setActiveTab] = useState("scan");
   const [result, setResult] = useState<ScanResult | null>(null);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
 
   // Cache: keyed by network type
   const cacheRef = useRef<Record<string, {
@@ -49,18 +54,16 @@ const Index = () => {
     }
   }, []);
 
-  // Determine cached simulated checks for the current network type
   const currentNetworkType = result?.networkType || ((navigator as any).connection?.type === "wifi" ? "Wi-Fi" : (navigator as any).connection?.type || "Unknown");
   const cached = cacheRef.current[currentNetworkType];
 
   const handleScanComplete = useCallback((scanResult: ScanResult | null) => {
+    let finalResult: ScanResult;
     if (demoMode) {
-      const forced = demoForce !== "random"
+      finalResult = demoForce !== "random"
         ? generateForcedResult(demoForce)
         : generateForcedResult("random");
-      setResult(forced);
     } else if (scanResult) {
-      // Cache the simulated checks and network info for this network type
       const netType = scanResult.networkType;
       if (!cacheRef.current[netType]) {
         cacheRef.current[netType] = {
@@ -74,15 +77,43 @@ const Index = () => {
           },
         };
       }
-      setResult(scanResult);
+      finalResult = scanResult;
+    } else {
+      return;
     }
+
+    setResult(finalResult);
     setState("results");
+
+    // Add to history
+    setHistory((prev) => [
+      {
+        id: crypto.randomUUID(),
+        result: finalResult,
+        timestamp: new Date(),
+      },
+      ...prev,
+    ]);
   }, [demoMode, demoForce]);
 
   const handleScanAgain = useCallback(() => {
     setResult(null);
     setState("idle");
   }, []);
+
+  const handleViewHistoryResult = useCallback((entry: HistoryEntry) => {
+    setResult(entry.result);
+    setState("results");
+    setActiveTab("scan");
+  }, []);
+
+  const handleGoToScan = useCallback(() => {
+    setActiveTab("scan");
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen onDismiss={() => setShowSplash(false)} />;
+  }
 
   return (
     <div className="min-h-screen flex justify-center bg-background">
@@ -151,9 +182,11 @@ const Index = () => {
           )}
 
           {activeTab === "history" && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3">
-              <p className="text-muted-foreground text-sm">Scan history coming soon</p>
-            </div>
+            <HistoryScreen
+              entries={history}
+              onViewResult={handleViewHistoryResult}
+              onGoToScan={handleGoToScan}
+            />
           )}
 
           {activeTab === "about" && (
