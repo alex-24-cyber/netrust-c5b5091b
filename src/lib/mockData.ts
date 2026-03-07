@@ -70,7 +70,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "rogue-dhcp": { name: "Captive Portal / Rogue DHCP", icon: "Server" },
 };
 
-function generateSimulatedChecks(): SecurityCheck[] {
+export function generateSimulatedChecks(): SecurityCheck[] {
   return SIMULATED_CHECKS.map((t) => {
     const passed = Math.random() > 0.3; // 70% pass rate
     return {
@@ -83,6 +83,24 @@ function generateSimulatedChecks(): SecurityCheck[] {
       checkType: "simulated" as const,
     };
   });
+}
+
+export interface CachedNetworkInfo {
+  bssid: string;
+  channel: number;
+  signalStrength: number;
+  encryption: string;
+  gatewayIp: string;
+}
+
+export function generateNetworkInfo(): CachedNetworkInfo {
+  return {
+    bssid: randomMac(),
+    channel: CHANNELS[Math.floor(Math.random() * CHANNELS.length)],
+    signalStrength: -(Math.floor(Math.random() * 50) + 30),
+    encryption: ENCRYPTIONS[Math.floor(Math.random() * 3)],
+    gatewayIp: randomIp(),
+  };
 }
 
 function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
@@ -98,14 +116,14 @@ function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
   };
 }
 
-function calculateScore(checks: SecurityCheck[]): { trustScore: number; trustLabel: string } {
+function calculateScore(checks: SecurityCheck[], jitter?: number): { trustScore: number; trustLabel: string } {
   let score = 0;
   for (const c of checks) {
     if (c.passed === true) score += 20;
-    else if (c.passed === null) score += 10; // inconclusive gets partial credit
+    else if (c.passed === null) score += 10;
   }
-  const jitter = Math.floor(Math.random() * 11) - 5;
-  const trustScore = Math.max(5, Math.min(100, score + jitter));
+  const j = jitter ?? (Math.floor(Math.random() * 5) - 2); // ±2 default
+  const trustScore = Math.max(5, Math.min(100, score + j));
   const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
   return { trustScore, trustLabel };
 }
@@ -113,12 +131,13 @@ function calculateScore(checks: SecurityCheck[]): { trustScore: number; trustLab
 export function buildScanResult(
   realResults: RealCheckResult[],
   networkType: string,
-  ssidNote: string
+  ssidNote: string,
+  cachedSimulated?: SecurityCheck[],
+  cachedInfo?: CachedNetworkInfo,
 ): ScanResult {
-  const simulated = generateSimulatedChecks();
+  const simulated = cachedSimulated || generateSimulatedChecks();
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
-  // Order: evil-twin, arp-spoof, ssl-cert, dns-hijack, rogue-dhcp
   const checks: SecurityCheck[] = [
     ...simulated,
     ...["ssl-cert", "dns-hijack", "rogue-dhcp"].map(
@@ -127,18 +146,18 @@ export function buildScanResult(
   ];
 
   const { trustScore, trustLabel } = calculateScore(checks);
+  const info = cachedInfo || generateNetworkInfo();
   const numFails = checks.filter((c) => c.passed === false).length;
-  const encryption = numFails >= 3 ? "Open" : ENCRYPTIONS[Math.floor(Math.random() * 3)];
 
   return {
     networkName: "Current Network",
     networkType,
     ssidNote,
-    bssid: randomMac(),
-    channel: CHANNELS[Math.floor(Math.random() * CHANNELS.length)],
-    signalStrength: -(Math.floor(Math.random() * 50) + 30),
-    encryption,
-    gatewayIp: randomIp(),
+    bssid: info.bssid,
+    channel: info.channel,
+    signalStrength: info.signalStrength,
+    encryption: numFails >= 3 ? "Open" : info.encryption,
+    gatewayIp: info.gatewayIp,
     trustScore,
     trustLabel,
     checks,
