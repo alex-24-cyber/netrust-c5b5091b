@@ -3,7 +3,7 @@ import { Shield } from "lucide-react";
 import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
 import BottomNav from "@/components/BottomNav";
-import { generateScanResult, ScanResult } from "@/lib/mockData";
+import { ScanResult } from "@/lib/mockData";
 import { DemoForce, generateForcedResult } from "@/lib/demoMode";
 
 type AppState = "idle" | "scanning" | "results";
@@ -42,11 +42,17 @@ const Index = () => {
     }
   }, []);
 
-  const handleScanComplete = useCallback(() => {
-    const scanResult = demoMode && demoForce !== "random"
-      ? generateForcedResult(demoForce)
-      : generateScanResult();
-    setResult(scanResult);
+  const handleScanComplete = useCallback((scanResult: ScanResult | null) => {
+    if (demoMode) {
+      // In demo mode, ScanButton signals completion; we generate forced result
+      const forced = demoForce !== "random"
+        ? generateForcedResult(demoForce)
+        : generateForcedResult("random");
+      setResult(forced);
+    } else {
+      // Real scan: result comes from ScanButton with live checks
+      setResult(scanResult);
+    }
     setState("results");
   }, [demoMode, demoForce]);
 
@@ -97,18 +103,14 @@ const Index = () => {
 
         {/* Content */}
         <main className="flex-1 flex flex-col px-5 overflow-y-auto">
-          {state === "idle" && (
+          {(state === "idle" || state === "scanning") && (
             <div className="flex-1 flex flex-col items-center justify-center gap-2">
-              <p className="text-muted-foreground text-sm mb-10 text-center">
-                Know your network before you connect
-              </p>
-              <ScanButton onScanComplete={handleScanComplete} />
-            </div>
-          )}
-
-          {state === "scanning" && (
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <ScanButton onScanComplete={handleScanComplete} />
+              {state === "idle" && (
+                <p className="text-muted-foreground text-sm mb-10 text-center">
+                  Know your network before you connect
+                </p>
+              )}
+              <ScanButton onScanComplete={handleScanComplete} demoMode={demoMode} />
             </div>
           )}
 
