@@ -157,10 +157,10 @@ const ScanButton = ({ onScanComplete, demoMode, cachedSimulated, cachedNetworkIn
         >
           <div className="absolute inset-0 rounded-full bg-primary/10" />
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="relative z-10">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="hsl(var(--primary))" strokeWidth="1.5" />
-            <path d="M8.5 8.5a5 5 0 0 1 7 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M6 6a9 9 0 0 1 12 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
-            <circle cx="12" cy="14" r="2" fill="hsl(var(--primary))" />
+            <path d="M12 18.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="hsl(var(--primary))" />
+            <path d="M9.5 14a4 4 0 0 1 5 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M7 11a7 7 0 0 1 10 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M4.5 8a10.5 10.5 0 0 1 15 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
         </button>
         <p className="text-muted-foreground text-sm">Tap to analyse network</p>
