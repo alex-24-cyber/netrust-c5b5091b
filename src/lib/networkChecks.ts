@@ -333,12 +333,12 @@ export async function checkContentInjection(): Promise<RealCheckResult> {
     const ctrl = withTimeout(5000);
     const res = await fetch("http://neverssl.com/", { mode: "cors", signal: ctrl.signal, redirect: "manual" });
 
-    // Redirect check
     if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
       return {
         id, passed: false,
+        evidence: { "Target": "http://neverssl.com", "Result": "Redirected", "Status": String(res.status) },
         status: "HTTP traffic is being redirected — possible interception",
-        explanation: "This network is redirecting your unencrypted HTTP requests to a different destination. This could indicate a captive portal, ISP injection, or a man-in-the-middle attack intercepting your traffic.",
+        explanation: "This network is redirecting your unencrypted HTTP requests to a different destination.",
       };
     }
 
@@ -346,39 +346,48 @@ export async function checkContentInjection(): Promise<RealCheckResult> {
     const scriptCount = (body.match(/<script[\s>]/gi) || []).length;
     const iframeCount = (body.match(/<iframe[\s>]/gi) || []).length;
     const suspiciousPatterns = ["advertisement", "ad-inject", "clicktrack", "analytics.js", "inject", "banner", "popup"];
-    const hasSuspicious = suspiciousPatterns.some((p) => body.toLowerCase().includes(p));
+    const matchedPatterns = suspiciousPatterns.filter((p) => body.toLowerCase().includes(p));
 
-    if (scriptCount === 0 && iframeCount === 0 && !hasSuspicious) {
+    const evidence: Record<string, string> = {
+      "Target": "http://neverssl.com",
+      "Response size": `${body.length} bytes`,
+      "<script> tags found": String(scriptCount),
+      "<iframe> tags found": String(iframeCount),
+      "Suspicious patterns": matchedPatterns.length > 0 ? matchedPatterns.join(", ") : "None",
+    };
+
+    if (scriptCount === 0 && iframeCount === 0 && matchedPatterns.length === 0) {
       return {
-        id, passed: true,
+        id, passed: true, evidence,
         status: "No content injection detected on HTTP traffic",
-        explanation: "We fetched an unencrypted HTTP page and verified the response was not tampered with. No injected scripts, iframes, or tracking code were found, confirming this network is not modifying your HTTP traffic.",
+        explanation: "We fetched an unencrypted HTTP page and verified the response was not tampered with. No injected scripts, iframes, or tracking code were found.",
       };
     } else {
       const parts: string[] = [];
       if (scriptCount > 0) parts.push(`${scriptCount} script(s)`);
       if (iframeCount > 0) parts.push(`${iframeCount} iframe(s)`);
-      if (hasSuspicious && parts.length === 0) parts.push("suspicious patterns");
+      if (matchedPatterns.length > 0 && parts.length === 0) parts.push("suspicious patterns");
       return {
-        id, passed: false,
+        id, passed: false, evidence,
         status: `Content injection detected — ${parts.join(", ")} injected into HTTP traffic`,
         explanation: "This network is injecting additional code into your unencrypted web traffic. This could be advertisements, tracking scripts, or malicious payloads. Any website you visit over HTTP (not HTTPS) on this network may be tampered with. Stick to HTTPS sites only, or use a VPN to encrypt all traffic.",
       };
     }
   } catch (err: any) {
-    // Mixed content block = actually good (HTTPS-secured)
     if (err?.message?.includes("Mixed Content") || err?.message?.includes("mixed") ||
         (typeof window !== "undefined" && window.location.protocol === "https:")) {
       return {
         id, passed: true,
+        evidence: { "Target": "http://neverssl.com", "Result": "Blocked by mixed content policy", "Protocol": "HTTPS (secure)" },
         status: "Mixed content policy prevented HTTP check — your connection is HTTPS-secured",
-        explanation: "Your browser blocked the HTTP test request because you're on a secure HTTPS connection. This is actually good — it means your browser's built-in protections are working correctly to prevent insecure content from loading.",
+        explanation: "Your browser blocked the HTTP test request because you're on a secure HTTPS connection. This is actually good — it means your browser's built-in protections are working correctly.",
       };
     }
     return {
       id, passed: false,
+      evidence: { "Target": "http://neverssl.com", "Result": "Request failed" },
       status: "HTTP traffic appears to be blocked or intercepted",
-      explanation: "The HTTP content injection test failed entirely. This could mean the network is blocking unencrypted HTTP traffic, or something is intercepting the connection before it can complete.",
+      explanation: "The HTTP content injection test failed entirely. This could mean the network is blocking unencrypted HTTP traffic, or something is intercepting the connection.",
     };
   }
 }
@@ -401,8 +410,8 @@ export interface LatencyResult extends RealCheckResult {
 export async function checkLatencyAnomaly(): Promise<LatencyResult> {
   const id = "latency-anomaly";
   const endpoints = [
-    { name: "Google", url: "https://www.google.com" },
-    { name: "Cloudflare", url: "https://www.cloudflare.com" },
+    { name: "google.com", url: "https://www.google.com" },
+    { name: "cloudflare.com", url: "https://www.cloudflare.com" },
     { name: "1.1.1.1", url: "https://1.1.1.1" },
   ];
 
@@ -426,18 +435,27 @@ export async function checkLatencyAnomaly(): Promise<LatencyResult> {
   const successful = rtts.filter((r) => r.ms !== null);
   const detail = rtts.map((r) => `${r.name}: ${r.ms !== null ? r.ms + "ms" : "timeout"}`).join(" | ");
 
+  const buildEvidence = (avg?: number): Record<string, string> => {
+    const ev: Record<string, string> = {};
+    rtts.forEach((r) => { ev[r.name] = r.ms !== null ? `${r.ms}ms` : "timeout"; });
+    if (avg !== undefined) ev["Average"] = `${avg}ms`;
+    ev["Baseline threshold"] = "500ms";
+    return ev;
+  };
+
   if (timeouts >= 2) {
     return {
-      id, passed: false,
-      latencyDetail: detail,
+      id, passed: false, latencyDetail: detail,
+      evidence: buildEvidence(),
       status: "Multiple endpoints unreachable — severe network restriction detected",
-      explanation: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.",
+      explanation: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device.",
     };
   }
 
   if (successful.length === 0) {
     return {
       id, passed: false, latencyDetail: detail,
+      evidence: buildEvidence(),
       status: "All latency checks failed",
       explanation: "None of the latency probes completed successfully. The network may be severely restricted or offline.",
     };
@@ -449,20 +467,23 @@ export async function checkLatencyAnomaly(): Promise<LatencyResult> {
   if (avg < 500) {
     return {
       id, passed: true, latencyDetail: avgDetail,
+      evidence: buildEvidence(avg),
       status: `Network latency normal — avg ${avg}ms to major endpoints`,
-      explanation: `Round-trip latency to major internet services averaged ${avg}ms, which is within normal range. This suggests your traffic is taking a direct path to the internet without suspicious additional routing.\n\n${avgDetail}`,
+      explanation: `Round-trip latency to major internet services averaged ${avg}ms, which is within normal range. This suggests your traffic is taking a direct path to the internet without suspicious additional routing.`,
     };
   } else if (avg <= 1000) {
     return {
       id, passed: null, latencyDetail: avgDetail,
+      evidence: buildEvidence(avg),
       status: `Elevated latency — avg ${avg}ms — possible traffic routing`,
-      explanation: `Your traffic is averaging ${avg}ms to reach major services, which is higher than expected. This could indicate your traffic is being routed through a proxy or VPN tunnel, or simply a congested network. Monitor for other suspicious indicators.\n\n${avgDetail}`,
+      explanation: `Your traffic is averaging ${avg}ms to reach major services, which is higher than expected. This could indicate your traffic is being routed through a proxy or VPN tunnel, or simply a congested network.`,
     };
   } else {
     return {
       id, passed: false, latencyDetail: avgDetail,
+      evidence: buildEvidence(avg),
       status: `Abnormal latency detected — avg ${avg}ms (expected <500ms)`,
-      explanation: `Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.\n\n${avgDetail}`,
+      explanation: `Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device.`,
     };
   }
 }
