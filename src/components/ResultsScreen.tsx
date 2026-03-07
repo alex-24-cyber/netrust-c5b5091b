@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Copy, Network, Lock, Globe, Server, Video,
+  Copy, Network, Lock, Globe, Server, Video, Code,
 };
 
 function getTrustColor(score: number) {
