@@ -94,15 +94,17 @@ const Index = () => {
     setResult(finalResult);
     setState("results");
 
-    // Add to history
-    setHistory((prev) => [
-      {
-        id: crypto.randomUUID(),
-        result: finalResult,
-        timestamp: new Date(),
-      },
-      ...prev,
-    ]);
+    // Add to history and persist
+    const newEntry: HistoryEntry = {
+      id: crypto.randomUUID(),
+      result: finalResult,
+      timestamp: new Date(),
+    };
+    setHistory((prev) => {
+      const updated = [newEntry, ...prev].slice(0, 50);
+      try { localStorage.setItem("nettrust_history", JSON.stringify(updated)); } catch {}
+      return updated;
+    });
   }, [demoMode, demoForce]);
 
   const handleScanAgain = useCallback(() => {
