@@ -376,6 +376,54 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
       </div>
 
 
+      {/* Immediate Action */}
+      {(() => {
+        const failedChecks = result.checks.filter((c) => c.passed === false);
+        const timedOutChecks = result.checks.filter((c) => c.passed === null);
+        const color = getTrustColor(result.trustScore);
+
+        if (failedChecks.length > 0) {
+          return (
+            <div className="glass-card p-4 border-l-4 border-l-trust-danger">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-danger mb-2 flex items-center gap-2">
+                <AlertTriangle size={14} /> Immediate Action
+              </h3>
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                {failedChecks.length === 1
+                  ? `A threat was detected. ${CHECK_DETAILS[failedChecks[0].id]?.actions[0] || "Disconnect from this network immediately."}`
+                  : `${failedChecks.length} threats detected. Disconnect from this network and switch to mobile data immediately.`}
+              </p>
+            </div>
+          );
+        }
+
+        if (timedOutChecks.length > 0) {
+          return (
+            <div className="glass-card p-4 border-l-4 border-l-trust-warning">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-warning mb-2 flex items-center gap-2">
+                <AlertTriangle size={14} /> Recommended Action
+              </h3>
+              <p className="text-sm text-foreground/90 leading-relaxed">
+                {timedOutChecks.length === 1
+                  ? `One check was inconclusive. Avoid sensitive activity until you can verify this network.`
+                  : `${timedOutChecks.length} checks were inconclusive. Use a VPN or switch to mobile data as a precaution.`}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="glass-card p-4 border-l-4 border-l-trust-safe">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-safe mb-2 flex items-center gap-2">
+              <ShieldCheck size={14} /> You're Good
+            </h3>
+            <p className="text-sm text-foreground/90 leading-relaxed">
+              No threats detected. You can browse safely, but always use HTTPS and consider a VPN on public networks.
+            </p>
+          </div>
+        );
+      })()}
+
       {/* Scan Again */}
       <button
         onClick={onScanAgain}
