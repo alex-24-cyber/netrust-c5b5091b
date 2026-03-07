@@ -3,7 +3,7 @@ import { Shield } from "lucide-react";
 import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
 import BottomNav from "@/components/BottomNav";
-import { ScanResult } from "@/lib/mockData";
+import { ScanResult, SecurityCheck, CachedNetworkInfo, generateSimulatedChecks, generateNetworkInfo } from "@/lib/mockData";
 import { DemoForce, generateForcedResult } from "@/lib/demoMode";
 
 type AppState = "idle" | "scanning" | "results";
@@ -19,6 +19,12 @@ const Index = () => {
   const [state, setState] = useState<AppState>("idle");
   const [activeTab, setActiveTab] = useState("scan");
   const [result, setResult] = useState<ScanResult | null>(null);
+
+  // Cache: keyed by network type
+  const cacheRef = useRef<Record<string, {
+    simulated: SecurityCheck[];
+    networkInfo: CachedNetworkInfo;
+  }>>({});
 
   // Demo mode
   const [demoMode, setDemoMode] = useState(false);
@@ -42,15 +48,31 @@ const Index = () => {
     }
   }, []);
 
+  // Determine cached simulated checks for the current network type
+  const currentNetworkType = result?.networkType || ((navigator as any).connection?.type === "wifi" ? "Wi-Fi" : (navigator as any).connection?.type || "Unknown");
+  const cached = cacheRef.current[currentNetworkType];
+
   const handleScanComplete = useCallback((scanResult: ScanResult | null) => {
     if (demoMode) {
-      // In demo mode, ScanButton signals completion; we generate forced result
       const forced = demoForce !== "random"
         ? generateForcedResult(demoForce)
         : generateForcedResult("random");
       setResult(forced);
-    } else {
-      // Real scan: result comes from ScanButton with live checks
+    } else if (scanResult) {
+      // Cache the simulated checks and network info for this network type
+      const netType = scanResult.networkType;
+      if (!cacheRef.current[netType]) {
+        cacheRef.current[netType] = {
+          simulated: scanResult.checks.filter((c) => c.checkType === "simulated"),
+          networkInfo: {
+            bssid: scanResult.bssid,
+            channel: scanResult.channel,
+            signalStrength: scanResult.signalStrength,
+            encryption: scanResult.encryption,
+            gatewayIp: scanResult.gatewayIp,
+          },
+        };
+      }
       setResult(scanResult);
     }
     setState("results");
@@ -110,7 +132,12 @@ const Index = () => {
                   Know your network before you connect
                 </p>
               )}
-              <ScanButton onScanComplete={handleScanComplete} demoMode={demoMode} />
+              <ScanButton
+                onScanComplete={handleScanComplete}
+                demoMode={demoMode}
+                cachedSimulated={cached?.simulated}
+                cachedNetworkInfo={cached?.networkInfo}
+              />
             </div>
           )}
 
