@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ScanResult } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle } from "lucide-react";
+import { ScanResult, SecurityCheck } from "@/lib/mockData";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck } from "lucide-react";
 
 const iconMap: Record<string, React.ElementType> = {
   Copy, Network, Lock, Globe, Server,
@@ -12,13 +12,188 @@ function getTrustColor(score: number) {
   return "safe";
 }
 
+const CHECK_DETAILS: Record<string, {
+  detected: string;
+  risk: string;
+  actions: string[];
+}> = {
+  "evil-twin": {
+    detected: "A second network broadcasting the same SSID was found with a different hardware identifier (BSSID). This is consistent with an evil twin attack where an attacker clones a legitimate network.",
+    risk: "If you connect to the fake network, all your traffic — including passwords, messages, and banking details — can be intercepted in real time. The attacker can also serve fake login pages to steal credentials.",
+    actions: ["Disconnect from this network immediately", "Forget this network in your device settings", "Switch to mobile data or a known trusted network"],
+  },
+  "arp-spoof": {
+    detected: "The ARP table contains conflicting entries where multiple IP addresses resolve to the same MAC address. This pattern is consistent with ARP poisoning, a technique used in man-in-the-middle attacks.",
+    risk: "An attacker may be intercepting all traffic between your device and the router. This allows them to read, modify, or inject data into your unencrypted connections without your knowledge.",
+    actions: ["Disconnect and switch to mobile data", "Enable a VPN before reconnecting", "Avoid logging into any accounts on this network"],
+  },
+  "ssl-cert": {
+    detected: "Multiple HTTPS connections to well-known websites failed or returned invalid certificates. This suggests something on the network is interfering with encrypted connections.",
+    risk: "SSL stripping or interception means your encrypted traffic could be downgraded to plain HTTP. Passwords, credit card numbers, and personal data sent over these connections could be visible to attackers.",
+    actions: ["Do not enter any passwords or sensitive data", "Switch to mobile data immediately", "Use a VPN to re-encrypt your traffic"],
+  },
+  "dns-hijack": {
+    detected: "DNS queries sent to Google and Cloudflare returned different IP addresses for the same domain. This inconsistency suggests DNS responses are being manipulated on this network.",
+    risk: "DNS hijacking can redirect you to fake versions of real websites. You might think you're on your bank's site, but you're actually on an attacker's server designed to capture your login credentials.",
+    actions: ["Switch to a trusted DNS provider (1.1.1.1 or 8.8.8.8)", "Enable DNS-over-HTTPS in your browser settings", "Use a VPN to bypass local DNS manipulation"],
+  },
+  "rogue-dhcp": {
+    detected: "The network connectivity check was intercepted or redirected, indicating a captive portal or rogue DHCP server is active. Your traffic may be routed through an unauthorised gateway.",
+    risk: "A rogue DHCP server can assign your device a malicious gateway, routing all your internet traffic through an attacker's machine. This gives them complete visibility into your browsing activity.",
+    actions: ["Disconnect from this network", "Verify the network with the venue staff", "Use mobile data for any sensitive browsing"],
+  },
+};
+
 interface ResultsScreenProps {
   result: ScanResult;
   onScanAgain: () => void;
 }
 
+interface CheckModalProps {
+  check: SecurityCheck;
+  onClose: () => void;
+}
+
+const CheckModal = ({ check, onClose }: CheckModalProps) => {
+  const Icon = iconMap[check.icon] || Shield;
+  const isPassed = check.passed === true;
+  const isTimedOut = check.passed === null;
+  const details = CHECK_DETAILS[check.id];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in" />
+
+      {/* Modal */}
+      <div
+        className="relative w-full max-w-[430px] max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card border border-border border-b-0 p-5 pb-8 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Handle */}
+        <div className="flex justify-center mb-4">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        {isPassed ? (
+          /* Passed check - simple view */
+          <div className="flex flex-col items-center gap-4 py-6">
+            <div className="p-4 rounded-2xl bg-trust-safe/10">
+              <ShieldCheck size={40} className="text-trust-safe" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground text-center">{check.name}</h2>
+            <div className="flex items-center gap-2">
+              {check.checkType === "live" ? (
+                <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                  <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                  Live
+                </span>
+              ) : (
+                <span className="inline-flex items-center text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                  Simulated
+                </span>
+              )}
+            </div>
+            <p className="text-trust-safe text-sm font-medium text-center">All clear — no issues detected</p>
+            <p className="text-xs text-muted-foreground text-center leading-relaxed max-w-[300px]">
+              {check.explanation}
+            </p>
+            <button
+              onClick={onClose}
+              className="w-full mt-2 py-3 rounded-xl bg-trust-safe/10 text-trust-safe font-semibold text-sm transition-transform active:scale-[0.98] border border-trust-safe/20"
+            >
+              Got it
+            </button>
+          </div>
+        ) : (
+          /* Failed or timed-out check - detailed view */
+          <div className="flex flex-col gap-5">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className={`p-2.5 rounded-xl ${isTimedOut ? "bg-trust-warning/10" : "bg-trust-danger/10"}`}>
+                {isTimedOut ? (
+                  <AlertTriangle size={24} className="text-trust-warning" />
+                ) : (
+                  <AlertTriangle size={24} className="text-trust-danger" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">{check.name}</h2>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className={`text-xs ${isTimedOut ? "text-trust-warning" : "text-trust-danger"}`}>
+                    {check.status}
+                  </p>
+                  {check.checkType === "live" ? (
+                    <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+                      <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                      Live
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border">
+                      Simulated
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {details && (
+              <>
+                {/* What was detected */}
+                <div className="glass-card p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+                    <Icon size={12} /> What was detected
+                  </h3>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{details.detected}</p>
+                </div>
+
+                {/* Why it matters */}
+                <div className="glass-card p-4">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+                    <Shield size={12} /> Why it matters
+                  </h3>
+                  <p className="text-sm text-foreground/90 leading-relaxed">{details.risk}</p>
+                </div>
+
+                {/* What to do */}
+                <div className={`glass-card p-4 border-l-4 ${isTimedOut ? "border-l-trust-warning" : "border-l-trust-danger"}`}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                    What to do
+                  </h3>
+                  <ul className="flex flex-col gap-2.5">
+                    {details.actions.map((action, i) => (
+                      <li key={i} className="flex items-start gap-2.5 text-sm text-foreground/90">
+                        <span className={`mt-1.5 w-2 h-2 rounded-full shrink-0 ${isTimedOut ? "bg-trust-warning" : "bg-trust-danger"}`} />
+                        {action}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            )}
+
+            <button
+              onClick={onClose}
+              className={`w-full py-3 rounded-xl font-semibold text-sm transition-transform active:scale-[0.98] border ${
+                isTimedOut
+                  ? "bg-trust-warning/10 text-trust-warning border-trust-warning/20"
+                  : "bg-trust-danger/10 text-trust-danger border-trust-danger/20"
+              }`}
+            >
+              Got it
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
-  const [expanded, setExpanded] = useState<string | null>(null);
+  const [modalCheck, setModalCheck] = useState<SecurityCheck | null>(null);
   const color = getTrustColor(result.trustScore);
 
   const radius = 72;
@@ -91,14 +266,13 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         </h3>
         {result.checks.map((check) => {
           const Icon = iconMap[check.icon] || Shield;
-          const isOpen = expanded === check.id;
           const isTimedOut = check.passed === null;
 
           return (
             <button
               key={check.id}
-              onClick={() => setExpanded(isOpen ? null : check.id)}
-              className="glass-card p-3 text-left w-full transition-all duration-200"
+              onClick={() => setModalCheck(check)}
+              className="glass-card p-3 text-left w-full transition-all duration-200 active:scale-[0.98]"
             >
               <div className="flex items-center gap-3">
                 <div className={`p-1.5 rounded-lg ${
@@ -148,17 +322,9 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                   ) : (
                     <X size={16} className="text-trust-danger" />
                   )}
-                  <ChevronDown
-                    size={14}
-                    className={`text-muted-foreground transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
-                  />
+                  <ChevronDown size={14} className="text-muted-foreground" />
                 </div>
               </div>
-              {isOpen && (
-                <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border leading-relaxed animate-fade-in">
-                  {check.explanation}
-                </p>
-              )}
             </button>
           );
         })}
@@ -216,6 +382,11 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
       >
         Scan Again
       </button>
+
+      {/* Check Detail Modal */}
+      {modalCheck && (
+        <CheckModal check={modalCheck} onClose={() => setModalCheck(null)} />
+      )}
     </div>
   );
 };
