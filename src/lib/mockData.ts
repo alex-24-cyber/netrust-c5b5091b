@@ -136,13 +136,14 @@ function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
 }
 
 function calculateScore(checks: SecurityCheck[], jitter?: number): { trustScore: number; trustLabel: string } {
+  const perCheck = checks.length > 0 ? 100 / checks.length : 20;
   let score = 0;
   for (const c of checks) {
-    if (c.passed === true) score += 20;
-    else if (c.passed === null) score += 10;
+    if (c.passed === true) score += perCheck;
+    else if (c.passed === null) score += perCheck / 2;
   }
   const j = jitter ?? (Math.floor(Math.random() * 5) - 2); // ±2 default
-  const trustScore = Math.max(5, Math.min(100, score + j));
+  const trustScore = Math.max(5, Math.min(100, Math.round(score) + j));
   const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
   return { trustScore, trustLabel };
 }
