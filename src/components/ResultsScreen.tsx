@@ -76,6 +76,25 @@ interface CheckModalProps {
   onClose: () => void;
 }
 
+const EvidenceBlock = ({ evidence }: { evidence?: Record<string, string> }) => {
+  if (!evidence || Object.keys(evidence).length === 0) return null;
+  return (
+    <div className="w-full mt-1">
+      <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+        <Code size={10} /> Technical Details
+      </h3>
+      <div className="bg-background/80 border border-border rounded-lg p-3 font-mono text-[11px] leading-relaxed space-y-1">
+        {Object.entries(evidence).map(([key, value]) => (
+          <div key={key} className="flex gap-2">
+            <span className="text-muted-foreground shrink-0">{key}:</span>
+            <span className="text-foreground break-all">{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const CheckModal = ({ check, onClose }: CheckModalProps) => {
   const Icon = iconMap[check.icon] || Shield;
   const isPassed = check.passed === true;
@@ -123,6 +142,7 @@ const CheckModal = ({ check, onClose }: CheckModalProps) => {
             <p className="text-xs text-muted-foreground text-center leading-relaxed max-w-[300px]">
               {check.explanation}
             </p>
+            {check.checkType === "live" && <EvidenceBlock evidence={check.evidence} />}
             <button
               onClick={onClose}
               className="w-full mt-2 py-3 rounded-xl bg-trust-safe/10 text-trust-safe font-semibold text-sm transition-transform active:scale-[0.98] border border-trust-safe/20"
