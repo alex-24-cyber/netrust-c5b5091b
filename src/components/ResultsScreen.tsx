@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
-import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint } from "lucide-react";
+import { Shield, Copy, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Copy, Network, Lock, Globe, Server, Video, Code, Fingerprint,
+  Copy, Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer,
 };
 
 function getTrustColor(score: number) {
@@ -58,6 +58,11 @@ const CHECK_DETAILS: Record<string, {
     detected: "Your traffic is exiting the internet through a datacenter, VPN, or proxy service rather than a recognised consumer ISP. This is unusual for standard network connections.",
     risk: "Your traffic is exiting the internet through a datacenter or proxy service rather than a normal ISP. This could mean the network operator is routing your traffic through a remote server — possibly to monitor or modify it. This isn't always malicious (some businesses use VPN concentrators), but on a public Wi-Fi network it's a red flag.",
     actions: ["Verify with the network operator why traffic is routed through a datacenter", "Use your own VPN to ensure traffic encryption", "Switch to mobile data for sensitive browsing"],
+  },
+  "latency-anomaly": {
+    detected: "Latency measurements to major internet services showed abnormally high round-trip times, suggesting traffic is being routed through additional infrastructure.",
+    risk: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device. Normal Wi-Fi should reach Google or Cloudflare in under 200ms from most locations.",
+    actions: ["Compare latency on mobile data to confirm the issue is network-specific", "Use a VPN to bypass potential traffic interception", "Avoid sensitive transactions on this network"],
   },
 };
 
