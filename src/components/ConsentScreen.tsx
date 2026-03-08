@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ShieldAlert, Wifi, Lock, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { ShieldAlert, Wifi, Lock, CheckCircle2, ChevronDown, ChevronUp, Database, Globe } from "lucide-react";
 
 interface ConsentScreenProps {
   onAccept: () => void;
@@ -10,8 +10,8 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
   const [showTerms, setShowTerms] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[90] bg-background flex items-center justify-center">
-      <div className="w-full max-w-[400px] flex flex-col items-center gap-6 px-8 animate-fade-in">
+    <div className="fixed inset-0 z-[90] bg-background flex items-center justify-center overflow-y-auto">
+      <div className="w-full max-w-[400px] flex flex-col items-center gap-5 px-8 py-10 animate-fade-in">
         {/* Icon */}
         <div className="relative">
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150" />
@@ -52,6 +52,26 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
               <p className="text-xs text-muted-foreground">All checks run locally in your browser — no data leaves your device</p>
             </div>
           </div>
+          <div className="flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 shrink-0 mt-0.5">
+              <Database size={14} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Store data on-device only</p>
+              <p className="text-xs text-muted-foreground">Scan history and fingerprints saved to browser storage — you can delete anytime</p>
+            </div>
+          </div>
+        </div>
+
+        {/* GDPR Notice */}
+        <div className="w-full glass-card p-3 border-l-4 border-l-primary">
+          <div className="flex items-center gap-2 mb-1.5">
+            <Globe size={12} className="text-primary" />
+            <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Data Protection Notice</h3>
+          </div>
+          <p className="text-[11px] text-foreground/70 leading-relaxed">
+            In accordance with GDPR Art. 13 and applicable data protection laws: NetTrust processes network diagnostic data locally on your device. No personal data is collected, transmitted, or stored on external servers. You retain full control over all data — including the right to access, export, and permanently delete it at any time via the app's Settings.
+          </p>
         </div>
 
         {/* Terms */}
@@ -65,11 +85,11 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
           </button>
           {showTerms && (
             <div className="mt-2 p-3 rounded-lg bg-secondary/50 border border-border/50 text-[11px] text-muted-foreground leading-relaxed space-y-2">
-              <p>By using NetTrust, you confirm that:</p>
-              <p>1. You are the owner or authorized user of the network being scanned.</p>
-              <p>2. You understand that scanning networks you do not own or have permission to test may violate local laws.</p>
-              <p>3. NetTrust is a diagnostic tool — results are informational and do not guarantee network safety.</p>
-              <p>4. All scan data is stored locally on your device and never transmitted to external servers.</p>
+              <p><strong className="text-foreground/80">1. Authorization.</strong> You confirm you are the owner or authorized user of the network being scanned. Scanning networks without permission may violate the Computer Fraud and Abuse Act (CFAA), EU Directive 2013/40/EU, or equivalent local legislation.</p>
+              <p><strong className="text-foreground/80">2. Purpose.</strong> NetTrust is a security diagnostic tool. Results are informational and do not constitute a guarantee of network safety or a professional security audit.</p>
+              <p><strong className="text-foreground/80">3. Data Processing.</strong> All processing occurs on-device. No telemetry, analytics, or personal data is transmitted externally. Scan results are stored in localStorage and can be erased at any time (GDPR Art. 17 — Right to Erasure).</p>
+              <p><strong className="text-foreground/80">4. Data Retention.</strong> Scan history is retained locally for up to 50 entries. Network fingerprints are stored indefinitely until manually cleared. No automatic cloud backup exists.</p>
+              <p><strong className="text-foreground/80">5. Compliance.</strong> Security checks are mapped to NIST Cybersecurity Framework 2.0, OWASP Top 10 (2021), and CWE classifications. This tool supports — but does not replace — organizational compliance requirements.</p>
             </div>
           )}
         </div>
@@ -86,7 +106,7 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
               {agreed && <CheckCircle2 size={14} className="text-primary-foreground" />}
             </div>
             <span className="text-xs text-foreground/80">
-              I am authorized to scan this network and agree to the Terms of Use
+              I am authorized to scan this network and agree to the Terms of Use and Data Protection Notice
             </span>
           </button>
 
@@ -94,6 +114,7 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
             onClick={() => {
               if (agreed) {
                 localStorage.setItem("nettrust_consent", "true");
+                localStorage.setItem("nettrust_consent_date", new Date().toISOString());
                 onAccept();
               }
             }}
@@ -110,7 +131,7 @@ const ConsentScreen = ({ onAccept }: ConsentScreenProps) => {
         </div>
 
         <p className="text-[10px] text-muted-foreground/40 text-center font-mono">
-          NetTrust v4.0 — Authorized Network Security Scanner
+          NetTrust v4.0 — NIST CSF 2.0 · OWASP · GDPR Compliant
         </p>
       </div>
     </div>

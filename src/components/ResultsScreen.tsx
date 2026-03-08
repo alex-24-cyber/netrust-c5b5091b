@@ -37,6 +37,36 @@ const VERDICTS = {
   },
 };
 
+// NIST CSF 2.0 function mapping for each check
+const NIST_MAP: Record<string, { fn: string; category: string; subcategory: string }> = {
+  "ssl-cert":          { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-02 — Data-in-transit confidentiality" },
+  "dns-hijack":        { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-01 — Network monitoring" },
+  "rogue-dhcp":        { fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-02 — Anomalous activity detection" },
+  "webrtc-leak":       { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-05 — Data leak prevention" },
+  "content-inject":    { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-04 — Malicious code detection" },
+  "ip-reputation":     { fn: "Identify",category: "ID.RA", subcategory: "ID.RA-02 — Threat intelligence" },
+  "latency-anomaly":   { fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-03 — Event correlation" },
+  "tls-version":       { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-02 — Data-in-transit confidentiality" },
+  "bandwidth-throttle":{ fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-02 — Anomalous activity detection" },
+  "http2-support":     { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-01 — Network monitoring" },
+  "port-scan":         { fn: "Identify",category: "ID.RA", subcategory: "ID.RA-01 — Asset vulnerability identification" },
+};
+
+// CWE / OWASP references
+const CWE_MAP: Record<string, string> = {
+  "ssl-cert":       "CWE-295 · OWASP A02:2021",
+  "dns-hijack":     "CWE-350 · OWASP A05:2021",
+  "rogue-dhcp":     "CWE-923 · OWASP A07:2021",
+  "webrtc-leak":    "CWE-200 · OWASP A01:2021",
+  "content-inject": "CWE-94 · OWASP A03:2021",
+  "ip-reputation":  "CWE-346",
+  "latency-anomaly":"CWE-799",
+  "tls-version":    "CWE-326 · OWASP A02:2021",
+  "bandwidth-throttle": "CWE-400",
+  "http2-support":  "CWE-757 · OWASP A02:2021",
+  "port-scan":      "CWE-200 · OWASP A05:2021",
+};
+
 const THREAT_ADVICE: Record<string, {
   threat: string;
   action: string;
@@ -248,15 +278,30 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                   </div>
                   <X size={16} className="text-trust-danger shrink-0" />
                 </div>
-                {isExpanded && check.evidence && (
-                  <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
-                      {Object.entries(check.evidence).map(([key, value]) => (
-                        <div key={key} className="flex gap-2">
-                          <span className="text-primary/50 shrink-0">{key}:</span>
-                          <span className="text-foreground/70 break-all">{value}</span>
-                        </div>
-                      ))}
+                {isExpanded && (
+                  <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                    {check.evidence && (
+                      <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
+                        {Object.entries(check.evidence).map(([key, value]) => (
+                          <div key={key} className="flex gap-2">
+                            <span className="text-primary/50 shrink-0">{key}:</span>
+                            <span className="text-foreground/70 break-all">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* NIST / CWE reference badges */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {NIST_MAP[check.id] && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
+                          NIST {NIST_MAP[check.id].category}
+                        </span>
+                      )}
+                      {CWE_MAP[check.id] && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-danger/10 text-trust-danger/70 border border-trust-danger/20">
+                          {CWE_MAP[check.id]}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -291,15 +336,29 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                   </div>
                   <AlertTriangle size={14} className="text-trust-warning shrink-0" />
                 </div>
-                {expandedCheck === check.id && check.evidence && (
-                  <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
-                      {Object.entries(check.evidence).map(([key, value]) => (
-                        <div key={key} className="flex gap-2">
-                          <span className="text-primary/50 shrink-0">{key}:</span>
-                          <span className="text-foreground/70 break-all">{value}</span>
-                        </div>
-                      ))}
+                {expandedCheck === check.id && (
+                  <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                    {check.evidence && (
+                      <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
+                        {Object.entries(check.evidence).map(([key, value]) => (
+                          <div key={key} className="flex gap-2">
+                            <span className="text-primary/50 shrink-0">{key}:</span>
+                            <span className="text-foreground/70 break-all">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-1.5">
+                      {NIST_MAP[check.id] && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
+                          NIST {NIST_MAP[check.id].category}
+                        </span>
+                      )}
+                      {CWE_MAP[check.id] && (
+                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-warning/10 text-trust-warning/70 border border-trust-warning/20">
+                          {CWE_MAP[check.id]}
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -376,6 +435,32 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
             </div>
           )}
         </div>
+      </div>
+
+      {/* === NIST CSF COVERAGE === */}
+      <div className="glass-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+          <Shield size={12} className="text-primary" /> NIST CSF 2.0 Coverage
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          {(["Identify", "Protect", "Detect"] as const).map((fn) => {
+            const checksInFn = result.checks.filter(c => NIST_MAP[c.id]?.fn === fn);
+            const passedInFn = checksInFn.filter(c => c.passed === true).length;
+            const totalInFn = checksInFn.length;
+            const pct = totalInFn > 0 ? Math.round((passedInFn / totalInFn) * 100) : 0;
+            const color = pct >= 80 ? "text-trust-safe" : pct >= 50 ? "text-trust-warning" : "text-trust-danger";
+            return (
+              <div key={fn} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/30">
+                <span className={`text-lg font-bold font-mono ${color}`}>{pct}%</span>
+                <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{fn}</span>
+                <span className="text-[8px] text-muted-foreground/50">{passedInFn}/{totalInFn} checks</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[9px] text-muted-foreground/50 mt-2 text-center font-mono">
+          Mapped to NIST Cybersecurity Framework 2.0 functions
+        </p>
       </div>
 
       {/* === SCAN AGAIN === */}
