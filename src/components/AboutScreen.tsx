@@ -1,4 +1,4 @@
-import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap } from "lucide-react";
+import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap, Radar } from "lucide-react";
 
 const STEPS = [
   { icon: Wifi, label: "Connect to any network" },
@@ -17,6 +17,7 @@ const CHECKS = [
   { icon: ShieldCheck, name: "TLS Version Analysis", desc: "Checks your connection negotiates modern TLS 1.2/1.3 — detects forced downgrades" },
   { icon: Gauge, name: "Bandwidth Throttle Detection", desc: "Measures throughput to CDNs to detect intentional traffic limiting or inspection" },
   { icon: Layers, name: "Protocol Downgrade Detection", desc: "Verifies HTTP/2 and HTTP/3 support — detects transparent proxy interception" },
+  { icon: Radar, name: "Port Scan (nmap-style)", desc: "Probes 20 common ports via timing attacks — detects exposed services like SSH, RDP, SMB, databases" },
 ];
 
 const AboutScreen = () => {
@@ -42,7 +43,7 @@ const AboutScreen = () => {
           What is NetTrust?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          NetTrust is the most comprehensive browser-based WiFi security scanner. It runs <strong className="text-primary">10 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
+          NetTrust is the most comprehensive browser-based WiFi security scanner. It runs <strong className="text-primary">11 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
         </p>
       </div>
 
@@ -76,7 +77,7 @@ const AboutScreen = () => {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
           <Zap size={12} className="text-primary" /> What We Detect
         </h3>
-        <p className="text-[10px] text-muted-foreground mb-3 font-mono">10 live checks running against your real connection</p>
+        <p className="text-[10px] text-muted-foreground mb-3 font-mono">11 live checks running against your real connection</p>
         <div className="flex flex-col gap-3">
           {CHECKS.map((check) => {
             const Icon = check.icon;
@@ -110,7 +111,7 @@ const AboutScreen = () => {
 
       {/* Footer */}
       <p className="text-[11px] text-muted-foreground/40 text-center py-2 font-mono">
-        NetTrust v2.0 — 10 live security checks
+        NetTrust v2.0 — 11 live security checks
       </p>
     </div>
   );

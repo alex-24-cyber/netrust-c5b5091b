@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import ScanLog from "@/components/ScanLog";
-import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle, Gauge, Layers, Zap, Activity } from "lucide-react";
+import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle, Gauge, Layers, Zap, Activity, Radar } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers,
+  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Radar,
 };
 
 function getTrustColor(score: number) {
@@ -68,6 +68,11 @@ const CHECK_DETAILS: Record<string, {
     detected: "Your connections are only negotiating HTTP/1.1 instead of modern HTTP/2 or HTTP/3 protocols, suggesting a transparent proxy may be intercepting your traffic.",
     risk: "A transparent proxy that forces protocol downgrades can inspect and modify your traffic. This is a sign that someone on the network infrastructure is actively intercepting connections.",
     actions: ["Use HTTPS-only mode in your browser", "Enable a VPN to bypass the transparent proxy", "Avoid this network for sensitive browsing"],
+  },
+  "port-scan": {
+    detected: "A port scan of the network exit point revealed open ports that are commonly associated with vulnerable or sensitive services (e.g., SSH, RDP, SMB, database servers).",
+    risk: "Open ports on the network's public-facing IP can be exploited by attackers to gain unauthorized access, exfiltrate data, or pivot deeper into the network. Services like RDP (3389), VNC (5900), SMB (445), and database ports should never be exposed on public WiFi networks.",
+    actions: ["Avoid transferring sensitive data on this network", "Use a VPN to encrypt all traffic", "Report exposed services to the network administrator", "Switch to mobile data for sensitive operations"],
   },
 };
 

@@ -588,6 +588,191 @@ export async function checkHTTP2Support(): Promise<RealCheckResult> {
   }
 }
 
+// ─── PORT SCANNER (nmap-style) ──────────────────────────────────────────────
+
+interface PortProbeResult {
+  port: number;
+  service: string;
+  state: "open" | "closed" | "filtered";
+  responseMs: number;
+}
+
+const COMMON_PORTS: { port: number; service: string }[] = [
+  { port: 21, service: "ftp" },
+  { port: 22, service: "ssh" },
+  { port: 23, service: "telnet" },
+  { port: 25, service: "smtp" },
+  { port: 53, service: "dns" },
+  { port: 80, service: "http" },
+  { port: 110, service: "pop3" },
+  { port: 143, service: "imap" },
+  { port: 443, service: "https" },
+  { port: 445, service: "smb" },
+  { port: 993, service: "imaps" },
+  { port: 995, service: "pop3s" },
+  { port: 1433, service: "mssql" },
+  { port: 3306, service: "mysql" },
+  { port: 3389, service: "rdp" },
+  { port: 5432, service: "postgresql" },
+  { port: 5900, service: "vnc" },
+  { port: 8080, service: "http-alt" },
+  { port: 8443, service: "https-alt" },
+  { port: 8888, service: "http-proxy" },
+];
+
+async function probePort(host: string, port: number, service: string): Promise<PortProbeResult> {
+  // Use timing-based detection: attempt a fetch to the target port.
+  // Open ports respond or reject quickly. Filtered ports time out.
+  // Closed ports send RST which causes a fast error.
+  const start = performance.now();
+  const timeoutMs = 3000;
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+
+    // Try WebSocket for non-HTTP ports (faster timing signal)
+    if (![80, 443, 8080, 8443].includes(port)) {
+      const ws = new WebSocket(`ws://${host}:${port}`);
+      const result = await new Promise<PortProbeResult>((resolve) => {
+        const wsTimeout = setTimeout(() => {
+          ws.close();
+          resolve({ port, service, state: "filtered", responseMs: timeoutMs });
+        }, timeoutMs);
+
+        ws.onopen = () => {
+          clearTimeout(wsTimeout);
+          const ms = Math.round(performance.now() - start);
+          ws.close();
+          resolve({ port, service, state: "open", responseMs: ms });
+        };
+        ws.onerror = () => {
+          clearTimeout(wsTimeout);
+          const ms = Math.round(performance.now() - start);
+          // Fast error = port responded (open or closed with RST)
+          // A very fast response (<50ms) usually means RST (closed)
+          // A moderate response (50-200ms) with error likely means the port is open but not WS
+          if (ms < 50) {
+            resolve({ port, service, state: "closed", responseMs: ms });
+          } else if (ms < timeoutMs - 500) {
+            resolve({ port, service, state: "open", responseMs: ms });
+          } else {
+            resolve({ port, service, state: "filtered", responseMs: ms });
+          }
+        };
+      });
+      clearTimeout(timer);
+      return result;
+    }
+
+    // For HTTP ports, use fetch
+    const protocol = port === 443 || port === 8443 ? "https" : "http";
+    await fetch(`${protocol}://${host}:${port}/`, {
+      method: "HEAD",
+      mode: "no-cors",
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const ms = Math.round(performance.now() - start);
+    return { port, service, state: "open", responseMs: ms };
+  } catch {
+    const ms = Math.round(performance.now() - start);
+    if (ms >= timeoutMs - 200) {
+      return { port, service, state: "filtered", responseMs: ms };
+    }
+    // Fast error on HTTP ports = port is responding
+    if (ms < 500) {
+      return { port, service, state: "open", responseMs: ms };
+    }
+    return { port, service, state: "closed", responseMs: ms };
+  }
+}
+
+export interface PortScanResult extends RealCheckResult {
+  portResults?: PortProbeResult[];
+}
+
+export async function checkPortScan(): Promise<PortScanResult> {
+  const id = "port-scan";
+  try {
+    // First detect the gateway / target IP
+    // We'll scan the user's public IP (the exit point they see from the internet)
+    let targetIp = "gateway";
+    try {
+      const ctrl = withTimeout(3000);
+      const res = await fetch("https://api.ipify.org?format=json", { signal: ctrl.signal });
+      const data = await res.json();
+      if (data.ip) targetIp = data.ip;
+    } catch {
+      // Fall back to common gateway
+      targetIp = "192.168.1.1";
+    }
+
+    // Scan ports in batches to avoid overwhelming the browser
+    const portResults: PortProbeResult[] = [];
+    const batchSize = 5;
+
+    for (let i = 0; i < COMMON_PORTS.length; i += batchSize) {
+      const batch = COMMON_PORTS.slice(i, i + batchSize);
+      const results = await Promise.all(
+        batch.map((p) => probePort(targetIp, p.port, p.service))
+      );
+      portResults.push(...results);
+    }
+
+    const openPorts = portResults.filter((p) => p.state === "open");
+    const closedPorts = portResults.filter((p) => p.state === "closed");
+    const filteredPorts = portResults.filter((p) => p.state === "filtered");
+
+    // Build nmap-style evidence
+    const evidence: Record<string, string> = {
+      "Target": targetIp,
+      "Ports Scanned": String(COMMON_PORTS.length),
+      "Open": String(openPorts.length),
+      "Closed": String(closedPorts.length),
+      "Filtered": String(filteredPorts.length),
+    };
+
+    // Add open port details
+    openPorts.forEach((p) => {
+      evidence[`${p.port}/${p.service}`] = `OPEN (${p.responseMs}ms)`;
+    });
+
+    // Determine risk level
+    const dangerousPorts = openPorts.filter((p) =>
+      [21, 23, 25, 445, 1433, 3306, 3389, 5432, 5900].includes(p.port)
+    );
+
+    if (dangerousPorts.length > 0) {
+      const portList = dangerousPorts.map((p) => `${p.port}/${p.service}`).join(", ");
+      return {
+        id, passed: false, portResults, evidence,
+        status: `${openPorts.length} open ports — ${dangerousPorts.length} high-risk (${portList})`,
+        explanation: `Port scan detected ${openPorts.length} open ports on the network exit point (${targetIp}). ${dangerousPorts.length} of these are high-risk services (${portList}) that are commonly targeted by attackers. Open management ports like RDP, VNC, SMB, or database ports on a public-facing IP indicate serious security misconfiguration.`,
+      };
+    } else if (openPorts.length > 5) {
+      return {
+        id, passed: null, portResults, evidence,
+        status: `${openPorts.length} open ports detected — above normal for public WiFi`,
+        explanation: `The network exit point (${targetIp}) has ${openPorts.length} open ports. While none are critically dangerous, having many open ports increases the attack surface. This could indicate a poorly configured network or a machine running unnecessary services.`,
+      };
+    } else {
+      return {
+        id, passed: true, portResults, evidence,
+        status: `${openPorts.length} open, ${closedPorts.length} closed, ${filteredPorts.length} filtered — normal profile`,
+        explanation: `Port scan of the network exit point (${targetIp}) shows a normal port profile. ${openPorts.length > 0 ? `Open ports (${openPorts.map((p) => `${p.port}/${p.service}`).join(", ")}) are standard web services.` : "No unexpected open ports detected."} The network appears to have a reasonable security posture.`,
+      };
+    }
+  } catch {
+    return {
+      id, passed: null,
+      evidence: { "Error": "Port scan failed or timed out" },
+      status: "Could not complete port scan",
+      explanation: "The port scanning module failed or timed out. This may indicate the network is blocking outbound connection attempts.",
+    };
+  }
+}
+
 export async function fetchPublicIP(): Promise<string | null> {
   try {
     const ctrl = withTimeout(4000);
@@ -704,7 +889,7 @@ export async function runAllRealChecks(): Promise<{
   };
 
   addLog("Scan initiated — NetTrust WiFi Scanner v2.0");
-  addLog("Starting 10 live checks in parallel...");
+  addLog("Starting 11 live checks in parallel...");
 
   // Wrap each check with logging
   const wrapCheck = async <T extends RealCheckResult>(
@@ -847,6 +1032,25 @@ export async function runAllRealChecks(): Promise<{
         }
         const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
         addLog(`PROTOCOL → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("PORTSCAN", [
+        "PORTSCAN → Scanning 20 common ports on network exit point",
+        "PORTSCAN → Probing: ftp, ssh, telnet, smtp, dns, http, pop3, imap...",
+        "PORTSCAN → Probing: https, smb, mssql, mysql, rdp, vnc, http-alt...",
+      ], checkPortScan, (r) => {
+        const portRes = (r as PortScanResult).portResults;
+        if (portRes) {
+          const open = portRes.filter(p => p.state === "open");
+          const closed = portRes.filter(p => p.state === "closed");
+          const filtered = portRes.filter(p => p.state === "filtered");
+          if (open.length > 0) {
+            open.forEach(p => addLog(`PORTSCAN → ${p.port}/${p.service} — OPEN (${p.responseMs}ms)`));
+          }
+          addLog(`PORTSCAN → Results: ${open.length} open, ${closed.length} closed, ${filtered.length} filtered`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`PORTSCAN → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
       }),
     ]).then((results) =>
       results.map((r) =>

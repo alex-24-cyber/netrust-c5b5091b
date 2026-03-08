@@ -165,7 +165,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
         </button>
         <div className="text-center">
           <p className="text-muted-foreground text-sm font-medium">Tap to scan network</p>
-          <p className="text-muted-foreground/50 text-xs mt-1">10 live security checks</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">11 live security checks</p>
         </div>
       </div>
     );
@@ -227,7 +227,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
                 {Math.min(Math.round(progress), 100)}%
               </span>
               <span className="text-[10px] uppercase tracking-widest text-primary/60 mt-1">
-                {checksCompleted > 0 ? `${checksCompleted}/10` : "scanning"}
+                {checksCompleted > 0 ? `${checksCompleted}/11` : "scanning"}
               </span>
             </div>
           )}
