@@ -1,4 +1,4 @@
-import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap, Radar } from "lucide-react";
+import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap, Radar, Radio } from "lucide-react";
 
 const STEPS = [
   { icon: Wifi, label: "Connect to any network" },
@@ -37,13 +37,16 @@ const AboutScreen = () => {
         <p className="text-xs font-mono uppercase tracking-[0.3em] text-primary/60">WiFi Security Scanner</p>
       </div>
 
-      {/* What is TrustNet */}
+      {/* What is NetTrust */}
       <div className="glass-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           What is NetTrust?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          NetTrust is the most comprehensive browser-based WiFi security scanner. It runs <strong className="text-primary">11 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
+          NetTrust is a comprehensive WiFi security scanner that runs <strong className="text-primary">11 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
+        </p>
+        <p className="text-sm text-foreground/90 leading-relaxed mt-2">
+          With the optional <strong className="text-primary">WiFi scanner backend</strong>, NetTrust can also detect nearby wireless networks, identify evil twin access points, and flag networks with weak or no encryption.
         </p>
       </div>
 
@@ -72,10 +75,37 @@ const AboutScreen = () => {
         </div>
       </div>
 
-      {/* What We Detect */}
+      {/* WiFi Scanner */}
+      <div className="glass-card p-4 border-l-4 border-l-trust-safe">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+          <Radio size={12} className="text-trust-safe" /> WiFi Network Scanner
+        </h3>
+        <p className="text-sm text-foreground/90 leading-relaxed">
+          NetTrust includes an optional backend scanner that uses your system's WiFi hardware to discover nearby networks. It detects:
+        </p>
+        <ul className="flex flex-col gap-1.5 mt-2">
+          <li className="flex items-center gap-2 text-sm text-foreground/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-trust-safe shrink-0" />
+            Nearby SSIDs with signal strength and security type
+          </li>
+          <li className="flex items-center gap-2 text-sm text-foreground/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-trust-danger shrink-0" />
+            Evil twin access points (same SSID, different BSSID)
+          </li>
+          <li className="flex items-center gap-2 text-sm text-foreground/80">
+            <span className="w-1.5 h-1.5 rounded-full bg-trust-warning shrink-0" />
+            Open and weakly encrypted networks
+          </li>
+        </ul>
+        <p className="text-[11px] text-muted-foreground mt-3">
+          Start the scanner backend with: <code className="text-primary/80 bg-primary/5 px-1.5 py-0.5 rounded">cd server && npm start</code>
+        </p>
+      </div>
+
+      {/* Security Checks */}
       <div className="glass-card p-4">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
-          <Zap size={12} className="text-primary" /> What We Detect
+          <Zap size={12} className="text-primary" /> Security Checks
         </h3>
         <p className="text-[10px] text-muted-foreground mb-3 font-mono">11 live checks running against your real connection</p>
         <div className="flex flex-col gap-3">
@@ -101,17 +131,19 @@ const AboutScreen = () => {
         </div>
       </div>
 
-      {/* Stat Card */}
-      <div className="glass-card p-5 border-l-4 border-l-trust-danger text-center">
-        <p className="text-lg font-bold text-foreground leading-snug">
-          "1 in 4 travellers have been hacked on public Wi-Fi"
+      {/* Privacy */}
+      <div className="glass-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+          <Lock size={12} className="text-primary" /> Privacy
+        </h3>
+        <p className="text-sm text-foreground/90 leading-relaxed">
+          All security checks run entirely in your browser. No data is sent to our servers. The WiFi scanner backend runs locally on your machine. Your scan results are stored only in your browser's local storage.
         </p>
-        <p className="text-xs text-muted-foreground mt-2">— Norton Cyber Safety Report</p>
       </div>
 
       {/* Footer */}
       <p className="text-[11px] text-muted-foreground/40 text-center py-2 font-mono">
-        NetTrust v2.0 — 11 live security checks
+        NetTrust v3.0 — 11 live security checks + WiFi scanner
       </p>
     </div>
   );

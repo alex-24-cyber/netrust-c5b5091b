@@ -72,7 +72,7 @@ const Index = () => {
             <h1 className="text-lg font-bold tracking-tight text-foreground">
               Net<span className="text-primary">Trust</span>
             </h1>
-            <span className="text-[9px] font-mono uppercase tracking-wider text-primary/40 ml-1">v2.0</span>
+            <span className="text-[9px] font-mono uppercase tracking-wider text-primary/40 ml-1">v3.0</span>
           </div>
         </header>
 
@@ -84,7 +84,7 @@ const Index = () => {
                 <div className="flex-1 flex flex-col items-center justify-center gap-2">
                   {state === "idle" && (
                     <p className="text-muted-foreground/60 text-xs font-mono mb-8 text-center tracking-wide">
-                      Know your network before you connect
+                      Verify your network security in seconds
                     </p>
                   )}
                   <ScanButton onScanComplete={handleScanComplete} />

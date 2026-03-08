@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Shield } from "lucide-react";
+import { Shield, Wifi, Lock, Radar } from "lucide-react";
 
 interface SplashScreenProps {
   onDismiss: () => void;
@@ -8,12 +8,12 @@ interface SplashScreenProps {
 const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
   const [fading, setFading] = useState(false);
   const [showContent, setShowContent] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+  const [showFeatures, setShowFeatures] = useState(false);
   const [showCTA, setShowCTA] = useState(false);
 
   useEffect(() => {
     const t1 = setTimeout(() => setShowContent(true), 300);
-    const t2 = setTimeout(() => setShowStats(true), 800);
+    const t2 = setTimeout(() => setShowFeatures(true), 800);
     const t3 = setTimeout(() => setShowCTA(true), 1200);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
   }, []);
@@ -41,7 +41,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
       <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-trust-safe/10 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: "1s" }} />
 
       <div className={`flex flex-col items-center gap-6 px-8 max-w-[360px] relative z-10 transition-all duration-700 ${showContent ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}>
-        {/* Logo with glow */}
+        {/* Logo */}
         <div className="relative">
           <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150" />
           <div className="relative p-7 rounded-3xl bg-gradient-to-b from-primary/20 to-primary/5 border border-primary/30 glow-blue">
@@ -59,31 +59,38 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
           </p>
         </div>
 
-        {/* Feature pills */}
-        <div className={`flex flex-wrap justify-center gap-2 transition-all duration-500 ${showStats ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-mono text-primary/80">
-            11 Live Checks
-          </span>
-          <span className="px-3 py-1.5 rounded-full bg-trust-safe/10 border border-trust-safe/20 text-[11px] font-mono text-trust-safe/80">
-            Real-Time Scan
-          </span>
-          <span className="px-3 py-1.5 rounded-full bg-trust-warning/10 border border-trust-warning/20 text-[11px] font-mono text-trust-warning/80">
-            Threat Analysis
-          </span>
-        </div>
+        {/* Feature highlights */}
+        <div className={`flex flex-col gap-3 w-full transition-all duration-500 ${showFeatures ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
+          <div className="flex items-center gap-3 glass-card p-3">
+            <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+              <Radar size={16} className="text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">11 Live Security Checks</p>
+              <p className="text-[11px] text-muted-foreground">Real-time analysis of your active connection</p>
+            </div>
+          </div>
 
-        {/* Stat */}
-        <div className={`glass-card p-4 border-l-4 border-l-trust-danger w-full text-center transition-all duration-500 ${showStats ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
-          <p className="text-sm font-semibold text-foreground leading-snug">
-            1 in 4 people are hacked on public Wi-Fi
-          </p>
-          <p className="text-[10px] text-muted-foreground mt-1">— Norton Cyber Safety Report</p>
-        </div>
+          <div className="flex items-center gap-3 glass-card p-3">
+            <div className="p-2 rounded-lg bg-trust-safe/10 border border-trust-safe/20">
+              <Wifi size={16} className="text-trust-safe" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">WiFi Network Scanner</p>
+              <p className="text-[11px] text-muted-foreground">Detect nearby networks, evil twins, and weak security</p>
+            </div>
+          </div>
 
-        {/* Description */}
-        <p className="text-sm text-muted-foreground text-center leading-relaxed">
-          Scan any network in seconds. Detect DNS hijacking, SSL stripping, traffic interception, and more.
-        </p>
+          <div className="flex items-center gap-3 glass-card p-3">
+            <div className="p-2 rounded-lg bg-trust-warning/10 border border-trust-warning/20">
+              <Lock size={16} className="text-trust-warning" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">Threat Detection</p>
+              <p className="text-[11px] text-muted-foreground">DNS hijacking, SSL stripping, content injection, and more</p>
+            </div>
+          </div>
+        </div>
 
         {/* CTA */}
         <div className={`w-full transition-all duration-500 ${showCTA ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
@@ -94,7 +101,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
             Start Scanning
           </button>
           <p className="text-center text-[10px] text-muted-foreground/40 mt-3 font-mono">
-            v2.0 — 11 live security checks
+            v3.0 — All scans run locally in your browser
           </p>
         </div>
       </div>
