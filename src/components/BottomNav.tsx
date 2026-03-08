@@ -1,4 +1,4 @@
-import { ShieldAlert, Clock } from "lucide-react";
+import { ShieldAlert, Clock, MoreHorizontal } from "lucide-react";
 
 interface BottomNavProps {
   activeTab: string;
@@ -9,6 +9,7 @@ interface BottomNavProps {
 const tabs = [
   { id: "scan", label: "Scan", icon: ShieldAlert },
   { id: "history", label: "History", icon: Clock },
+  { id: "more", label: "More", icon: MoreHorizontal },
 ];
 
 const BottomNav = ({ activeTab, onTabChange, threatCount }: BottomNavProps) => {
