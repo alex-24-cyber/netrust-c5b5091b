@@ -63,8 +63,7 @@ function calculateScore(checks: SecurityCheck[]): { trustScore: number; trustLab
     if (c.passed === true) score += perCheck;
     else if (c.passed === null) score += perCheck / 2;
   }
-  const j = Math.floor(Math.random() * 7) - 3; // ±3
-  const trustScore = Math.max(0, Math.min(100, Math.round(score + j)));
+  const trustScore = Math.max(0, Math.min(100, Math.round(score)));
   const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
   return { trustScore, trustLabel };
 }

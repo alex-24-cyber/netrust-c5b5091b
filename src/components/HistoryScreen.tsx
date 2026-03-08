@@ -65,12 +65,16 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
           <button
             key={entry.id}
             onClick={() => onViewResult(entry)}
-            className="glass-card p-4 text-left w-full transition-all duration-200 active:scale-[0.98]"
+            className="glass-card p-4 text-left w-full transition-all duration-200 active:scale-[0.98] hover:border-primary/30"
           >
             <div className="flex items-center gap-3">
               {/* Score badge */}
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-${color}/10 shrink-0`}>
-                <span className={`text-lg font-bold font-mono text-${color}`}>
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
+                color === "trust-danger" ? "bg-trust-danger/10" : color === "trust-warning" ? "bg-trust-warning/10" : "bg-trust-safe/10"
+              }`}>
+                <span className={`text-lg font-bold font-mono ${
+                  color === "trust-danger" ? "text-trust-danger" : color === "trust-warning" ? "text-trust-warning" : "text-trust-safe"
+                }`}>
                   {entry.result.trustScore}
                 </span>
               </div>

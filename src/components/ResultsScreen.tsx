@@ -461,8 +461,8 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
       label: "SSID",
       value: result.wifiCurrentConnection?.ssid || "Current Network",
       subtitle: result.wifiCurrentConnection?.ssid
-        ? "Detected via WiFi scanner backend"
-        : "Browser privacy policy hides the actual network name — run WiFi scanner backend for real SSID",
+        ? "Detected via WiFi scanner"
+        : "SSID hidden by browser privacy policy",
     },
     ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
     ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" }] : []),

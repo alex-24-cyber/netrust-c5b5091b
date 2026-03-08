@@ -16,6 +16,7 @@ const SCAN_MESSAGES = [
   "Measuring bandwidth integrity...",
   "Inspecting exit node reputation...",
   "Detecting content injection...",
+  "Scanning nearby WiFi networks...",
   "Analysing traffic routing...",
 ];
 
@@ -165,7 +166,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
         </button>
         <div className="text-center">
           <p className="text-muted-foreground text-sm font-medium">Tap to scan network</p>
-          <p className="text-muted-foreground/50 text-xs mt-1">11 live security checks</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">11 security checks + WiFi scan</p>
         </div>
       </div>
     );

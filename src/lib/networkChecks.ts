@@ -159,10 +159,6 @@ export async function checkCaptivePortal(): Promise<RealCheckResult> {
   }
 }
 
-export interface WebRTCLeakResult extends RealCheckResult {
-  leakedIp?: string;
-}
-
 export interface IPReputationData {
   ip: string;
   org: string;
@@ -890,8 +886,8 @@ export async function runAllRealChecks(): Promise<{
     log.push({ timestamp: performance.now() - scanStart, message: msg, type });
   };
 
-  addLog("Scan initiated — NetTrust WiFi Scanner v2.0");
-  addLog("Starting 11 live checks in parallel + WiFi scan...");
+  addLog("Scan initiated — NetTrust v3.0");
+  addLog("Starting 11 live security checks...");
 
   // Wrap each check with logging
   const wrapCheck = async <T extends RealCheckResult>(
@@ -1114,10 +1110,10 @@ export async function runAllRealChecks(): Promise<{
         addLog("WIFI → Scan returned no results", "warn");
       }
     } else {
-      addLog("WIFI → Backend scanner not available (run server/index.js for real WiFi scanning)", "info");
+      addLog("WIFI → Scanner not connected (optional)", "info");
     }
   } catch {
-    addLog("WIFI → WiFi scan skipped (backend not running)", "info");
+    addLog("WIFI → Scanner not available (optional)", "info");
   }
 
   // Sort log by timestamp
