@@ -62,7 +62,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
         {/* Feature pills */}
         <div className={`flex flex-wrap justify-center gap-2 transition-all duration-500 ${showStats ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}`}>
           <span className="px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[11px] font-mono text-primary/80">
-            10 Live Checks
+            11 Live Checks
           </span>
           <span className="px-3 py-1.5 rounded-full bg-trust-safe/10 border border-trust-safe/20 text-[11px] font-mono text-trust-safe/80">
             Real-Time Scan
@@ -94,7 +94,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
             Start Scanning
           </button>
           <p className="text-center text-[10px] text-muted-foreground/40 mt-3 font-mono">
-            v2.0 — 10 live security checks
+            v2.0 — 11 live security checks
           </p>
         </div>
       </div>

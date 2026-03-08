@@ -1,4 +1,5 @@
 import { RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "./networkChecks";
+import type { WifiNetwork, WifiCurrentConnection } from "./wifiScanner";
 
 export interface SecurityCheck {
   id: string;
@@ -23,6 +24,8 @@ export interface ScanResult {
   trustLabel: string;
   checks: SecurityCheck[];
   scanLog?: ScanLogEntry[];
+  wifiNetworks?: WifiNetwork[];
+  wifiCurrentConnection?: WifiCurrentConnection;
 }
 
 const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
@@ -36,6 +39,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "tls-version": { name: "TLS Version Analysis", icon: "ShieldCheck" },
   "bandwidth-throttle": { name: "Bandwidth Throttle Detection", icon: "Gauge" },
   "http2-support": { name: "Protocol Downgrade Detection", icon: "Layers" },
+  "port-scan": { name: "Port Scan (nmap-style)", icon: "Radar" },
 };
 
 function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
@@ -72,17 +76,19 @@ export function buildScanResult(
   webrtcLeakedIp?: string,
   ipReputation?: IPReputationData,
   scanLog?: ScanLogEntry[],
+  wifiNetworks?: WifiNetwork[],
+  wifiCurrentConnection?: WifiCurrentConnection,
 ): ScanResult {
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
-  const checks = ["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly", "tls-version", "bandwidth-throttle", "http2-support"]
+  const checks = ["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly", "tls-version", "bandwidth-throttle", "http2-support", "port-scan"]
     .map((id) => liveChecks.find((c) => c.id === id)!)
     .filter(Boolean);
 
   const { trustScore, trustLabel } = calculateScore(checks);
 
   return {
-    networkName: "Current Network",
+    networkName: wifiCurrentConnection?.ssid || "Current Network",
     networkType: connectionInfo.type,
     ssidNote: connectionInfo.ssidNote,
     publicIp,
@@ -93,5 +99,7 @@ export function buildScanResult(
     trustLabel,
     checks,
     scanLog,
+    wifiNetworks,
+    wifiCurrentConnection,
   };
 }

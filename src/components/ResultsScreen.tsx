@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import ScanLog from "@/components/ScanLog";
-import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle, Gauge, Layers, Zap, Activity } from "lucide-react";
+import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle, Gauge, Layers, Zap, Activity, Radar, Radio, LockKeyhole, Unlock } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import type { WifiNetwork } from "@/lib/wifiScanner";
+import { analyzeWifiSecurity } from "@/lib/wifiScanner";
 
 const iconMap: Record<string, React.ElementType> = {
-  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers,
+  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Radar,
 };
 
 function getTrustColor(score: number) {
@@ -68,6 +70,11 @@ const CHECK_DETAILS: Record<string, {
     detected: "Your connections are only negotiating HTTP/1.1 instead of modern HTTP/2 or HTTP/3 protocols, suggesting a transparent proxy may be intercepting your traffic.",
     risk: "A transparent proxy that forces protocol downgrades can inspect and modify your traffic. This is a sign that someone on the network infrastructure is actively intercepting connections.",
     actions: ["Use HTTPS-only mode in your browser", "Enable a VPN to bypass the transparent proxy", "Avoid this network for sensitive browsing"],
+  },
+  "port-scan": {
+    detected: "A port scan of the network exit point revealed open ports that are commonly associated with vulnerable or sensitive services (e.g., SSH, RDP, SMB, database servers).",
+    risk: "Open ports on the network's public-facing IP can be exploited by attackers to gain unauthorized access, exfiltrate data, or pivot deeper into the network. Services like RDP (3389), VNC (5900), SMB (445), and database ports should never be exposed on public WiFi networks.",
+    actions: ["Avoid transferring sensitive data on this network", "Use a VPN to encrypt all traffic", "Report exposed services to the network administrator", "Switch to mobile data for sensitive operations"],
   },
 };
 
@@ -255,6 +262,172 @@ const ThreatBreakdown = ({ checks }: { checks: SecurityCheck[] }) => {
   );
 };
 
+function signalToPercent(signal: number): number {
+  // If already a percentage (0-100), use as is. If dBm (negative), convert.
+  if (signal <= 0) return Math.max(0, Math.min(100, 2 * (signal + 100)));
+  return Math.min(100, signal);
+}
+
+function signalColor(pct: number): string {
+  if (pct >= 70) return "text-trust-safe";
+  if (pct >= 40) return "text-trust-warning";
+  return "text-trust-danger";
+}
+
+function signalBars(pct: number) {
+  const bars = pct >= 80 ? 4 : pct >= 60 ? 3 : pct >= 30 ? 2 : 1;
+  return (
+    <div className="flex items-end gap-[2px] h-4">
+      {[1, 2, 3, 4].map((i) => (
+        <div
+          key={i}
+          className={`w-[3px] rounded-sm transition-all ${
+            i <= bars
+              ? pct >= 70 ? "bg-trust-safe" : pct >= 40 ? "bg-trust-warning" : "bg-trust-danger"
+              : "bg-muted-foreground/20"
+          }`}
+          style={{ height: `${25 + i * 18}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function securityBadge(security: string) {
+  const isOpen = !security || security === "Open" || security === "None";
+  const isWeak = security === "WEP" || security === "WPA";
+  const color = isOpen ? "text-trust-danger bg-trust-danger/10 border-trust-danger/20"
+    : isWeak ? "text-trust-warning bg-trust-warning/10 border-trust-warning/20"
+    : "text-trust-safe bg-trust-safe/10 border-trust-safe/20";
+  const Icon = isOpen ? Unlock : LockKeyhole;
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded-full border ${color}`}>
+      <Icon size={8} />
+      {security || "Open"}
+    </span>
+  );
+}
+
+const WifiNetworksPanel = ({ networks, currentSsid }: { networks: WifiNetwork[]; currentSsid?: string | null }) => {
+  const [expanded, setExpanded] = useState(false);
+  const analysis = analyzeWifiSecurity(networks);
+  const displayNetworks = expanded ? networks : networks.slice(0, 5);
+
+  return (
+    <div className="glass-card p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+        <Radio size={14} className="text-primary" /> Nearby WiFi Networks ({networks.length})
+        <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/60 border border-primary/20">
+          Live Scan
+        </span>
+      </h3>
+
+      {/* Analysis Summary */}
+      <div className="flex gap-2 mb-3 flex-wrap">
+        {analysis.openNetworks.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg bg-trust-danger/10 text-trust-danger border border-trust-danger/20">
+            <Unlock size={10} /> {analysis.openNetworks.length} Open
+          </span>
+        )}
+        {analysis.weakNetworks.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg bg-trust-warning/10 text-trust-warning border border-trust-warning/20">
+            <AlertTriangle size={10} /> {analysis.weakNetworks.length} Weak
+          </span>
+        )}
+        {analysis.strongNetworks.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
+            <LockKeyhole size={10} /> {analysis.strongNetworks.length} Secure
+          </span>
+        )}
+        {analysis.evilTwinCandidates.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-mono px-2 py-1 rounded-lg bg-trust-danger/10 text-trust-danger border border-trust-danger/20 animate-pulse">
+            <AlertTriangle size={10} /> {analysis.evilTwinCandidates.length} Evil Twin Warning
+          </span>
+        )}
+      </div>
+
+      {/* Network List */}
+      <div className="flex flex-col gap-1.5">
+        {displayNetworks.map((net, i) => {
+          const pct = signalToPercent(net.signal);
+          const isCurrent = currentSsid && net.ssid === currentSsid;
+          return (
+            <div
+              key={`${net.bssid}-${i}`}
+              className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
+                isCurrent
+                  ? "bg-primary/5 border-primary/30"
+                  : "bg-secondary/30 border-border/50 hover:border-primary/20"
+              }`}
+            >
+              {signalBars(pct)}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-mono truncate ${
+                    net.ssid === "<Hidden>" ? "text-muted-foreground italic" : "text-foreground"
+                  }`}>
+                    {net.ssid}
+                  </span>
+                  {isCurrent && (
+                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      Connected
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={`text-[10px] font-mono ${signalColor(pct)}`}>{pct}%</span>
+                  {net.channel > 0 && (
+                    <span className="text-[10px] font-mono text-muted-foreground">CH {net.channel}</span>
+                  )}
+                  {net.frequency && (
+                    <span className="text-[10px] font-mono text-muted-foreground">{net.frequency}</span>
+                  )}
+                  <span className="text-[10px] font-mono text-muted-foreground/50 truncate">{net.bssid}</span>
+                </div>
+              </div>
+              {securityBadge(net.security)}
+            </div>
+          );
+        })}
+      </div>
+
+      {networks.length > 5 && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full mt-2 py-2 text-xs font-mono text-primary/60 hover:text-primary transition-colors"
+        >
+          {expanded ? "Show less" : `Show all ${networks.length} networks`}
+        </button>
+      )}
+
+      {/* Evil Twin Details */}
+      {analysis.evilTwinCandidates.length > 0 && (
+        <div className="mt-3 p-3 rounded-lg bg-trust-danger/5 border border-trust-danger/20">
+          <h4 className="text-[11px] font-semibold uppercase tracking-wider text-trust-danger mb-2 flex items-center gap-1.5">
+            <AlertTriangle size={11} /> Possible Evil Twin Detected
+          </h4>
+          {analysis.evilTwinCandidates.map((group, i) => (
+            <div key={i} className="mb-2">
+              <p className="text-xs text-foreground/90 font-mono">"{group[0].ssid}" — {group.length} access points</p>
+              <div className="flex flex-col gap-0.5 mt-1">
+                {group.map((net, j) => (
+                  <span key={j} className="text-[10px] font-mono text-muted-foreground">
+                    BSSID: {net.bssid} — Signal: {signalToPercent(net.signal)}% — {net.security}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+          <p className="text-[10px] text-trust-danger/80 mt-1">
+            Multiple access points with the same SSID may indicate a rogue AP mimicking a legitimate network.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
   const [modalCheck, setModalCheck] = useState<SecurityCheck | null>(null);
   const color = getTrustColor(result.trustScore);
@@ -286,8 +459,10 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
     ...(connInfo?.rtt != null ? [{ label: "Est. Latency", value: `${connInfo.rtt} ms` }] : []),
     {
       label: "SSID",
-      value: "Current Network",
-      subtitle: "Browser privacy policy hides the actual network name",
+      value: result.wifiCurrentConnection?.ssid || "Current Network",
+      subtitle: result.wifiCurrentConnection?.ssid
+        ? "Detected via WiFi scanner backend"
+        : "Browser privacy policy hides the actual network name — run WiFi scanner backend for real SSID",
     },
     ...(result.publicIp ? [{ label: "Public IP", value: result.publicIp }] : []),
     ...(result.webrtcLocalIp ? [{ label: "Local IP (via WebRTC)", value: result.webrtcLocalIp, badge: "live" }] : []),
@@ -400,6 +575,14 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* WiFi Networks */}
+      {result.wifiNetworks && result.wifiNetworks.length > 0 && (
+        <WifiNetworksPanel
+          networks={result.wifiNetworks}
+          currentSsid={result.wifiCurrentConnection?.ssid}
+        />
       )}
 
       {/* Security Checks */}

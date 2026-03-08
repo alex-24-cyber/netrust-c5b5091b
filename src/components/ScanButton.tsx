@@ -30,7 +30,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
   const [checksCompleted, setChecksCompleted] = useState(0);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[] } | null>(null);
+  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[]; wifiNetworks?: import("@/lib/wifiScanner").WifiNetwork[]; wifiCurrentConnection?: import("@/lib/wifiScanner").WifiCurrentConnection } | null>(null);
   const realChecksResolvedRef = useRef(false);
   const animDoneRef = useRef(false);
 
@@ -119,7 +119,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
     const timer = setTimeout(() => {
       const connInfo = detectNetworkType();
       const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
-      const result = buildScanResult(realData.checks, connInfo, realData.publicIp, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
+      const result = buildScanResult(realData.checks, connInfo, realData.publicIp, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog, realData.wifiNetworks, realData.wifiCurrentConnection);
       setScanning(false);
       setShowComplete(false);
       setFinalising(false);
@@ -165,7 +165,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
         </button>
         <div className="text-center">
           <p className="text-muted-foreground text-sm font-medium">Tap to scan network</p>
-          <p className="text-muted-foreground/50 text-xs mt-1">10 live security checks</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">11 live security checks</p>
         </div>
       </div>
     );
@@ -227,7 +227,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
                 {Math.min(Math.round(progress), 100)}%
               </span>
               <span className="text-[10px] uppercase tracking-widest text-primary/60 mt-1">
-                {checksCompleted > 0 ? `${checksCompleted}/10` : "scanning"}
+                {checksCompleted > 0 ? `${checksCompleted}/11` : "scanning"}
               </span>
             </div>
           )}
