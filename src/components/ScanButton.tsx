@@ -30,7 +30,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
   const [checksCompleted, setChecksCompleted] = useState(0);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[] } | null>(null);
+  const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[]; wifiNetworks?: import("@/lib/wifiScanner").WifiNetwork[]; wifiCurrentConnection?: import("@/lib/wifiScanner").WifiCurrentConnection } | null>(null);
   const realChecksResolvedRef = useRef(false);
   const animDoneRef = useRef(false);
 
@@ -119,7 +119,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
     const timer = setTimeout(() => {
       const connInfo = detectNetworkType();
       const realData = realChecksRef.current || { checks: [], publicIp: null, scanLog: [] };
-      const result = buildScanResult(realData.checks, connInfo, realData.publicIp, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog);
+      const result = buildScanResult(realData.checks, connInfo, realData.publicIp, realData.webrtcLeakedIp, realData.ipReputation, realData.scanLog, realData.wifiNetworks, realData.wifiCurrentConnection);
       setScanning(false);
       setShowComplete(false);
       setFinalising(false);

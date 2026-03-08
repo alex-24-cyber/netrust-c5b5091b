@@ -881,6 +881,8 @@ export async function runAllRealChecks(): Promise<{
   webrtcLeakedIp?: string;
   ipReputation?: IPReputationData;
   scanLog: ScanLogEntry[];
+  wifiNetworks?: import("./wifiScanner").WifiNetwork[];
+  wifiCurrentConnection?: import("./wifiScanner").WifiCurrentConnection;
 }> {
   const scanStart = performance.now();
   const log: ScanLogEntry[] = [];
@@ -889,7 +891,7 @@ export async function runAllRealChecks(): Promise<{
   };
 
   addLog("Scan initiated — NetTrust WiFi Scanner v2.0");
-  addLog("Starting 11 live checks in parallel...");
+  addLog("Starting 11 live checks in parallel + WiFi scan...");
 
   // Wrap each check with logging
   const wrapCheck = async <T extends RealCheckResult>(
@@ -1069,10 +1071,59 @@ export async function runAllRealChecks(): Promise<{
   const total = checksResults.length;
   addLog(`All checks complete. ${passed}/${total} checks passed.`);
 
+  // WiFi Scanner — attempt real OS-level WiFi scan via backend
+  let wifiNetworks: import("./wifiScanner").WifiNetwork[] | undefined;
+  let wifiCurrentConnection: import("./wifiScanner").WifiCurrentConnection | undefined;
+
+  try {
+    const { isWifiScannerAvailable, scanWifiNetworks, getWifiCurrentConnection, analyzeWifiSecurity } = await import("./wifiScanner");
+
+    if (await isWifiScannerAvailable()) {
+      addLog("WIFI → Scanner backend detected, scanning nearby networks...");
+
+      const [scanResult, currentConn] = await Promise.all([
+        scanWifiNetworks().catch(() => null),
+        getWifiCurrentConnection().catch(() => null),
+      ]);
+
+      if (scanResult?.success && scanResult.networks.length > 0) {
+        wifiNetworks = scanResult.networks;
+        addLog(`WIFI → Found ${wifiNetworks.length} nearby networks`, "info");
+
+        if (currentConn?.connected && currentConn.ssid) {
+          wifiCurrentConnection = currentConn;
+          addLog(`WIFI → Connected to: ${currentConn.ssid}`, "info");
+        }
+
+        // Security analysis
+        const analysis = analyzeWifiSecurity(wifiNetworks);
+        if (analysis.openNetworks.length > 0) {
+          addLog(`WIFI → WARNING: ${analysis.openNetworks.length} open (no password) network(s) nearby`, "warn");
+        }
+        if (analysis.weakNetworks.length > 0) {
+          addLog(`WIFI → WARNING: ${analysis.weakNetworks.length} network(s) with weak security (WEP/WPA)`, "warn");
+        }
+        if (analysis.evilTwinCandidates.length > 0) {
+          addLog(`WIFI → ALERT: ${analysis.evilTwinCandidates.length} SSID(s) with multiple BSSIDs (possible evil twin)`, "fail");
+          for (const group of analysis.evilTwinCandidates) {
+            addLog(`WIFI → Evil twin candidate: "${group[0].ssid}" — ${group.length} APs`, "fail");
+          }
+        }
+        addLog(`WIFI → ${analysis.strongNetworks.length} strong, ${analysis.weakNetworks.length} weak, ${analysis.openNetworks.length} open`, "info");
+      } else {
+        addLog("WIFI → Scan returned no results", "warn");
+      }
+    } else {
+      addLog("WIFI → Backend scanner not available (run server/index.js for real WiFi scanning)", "info");
+    }
+  } catch {
+    addLog("WIFI → WiFi scan skipped (backend not running)", "info");
+  }
+
   // Sort log by timestamp
   log.sort((a, b) => a.timestamp - b.timestamp);
 
-  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData, scanLog: log };
+  return { checks: checksResults, publicIp, webrtcLeakedIp: webrtcResult?.leakedIp, ipReputation: ipRepResult?.reputationData, scanLog: log, wifiNetworks, wifiCurrentConnection };
 }
 
 export interface ConnectionInfo {

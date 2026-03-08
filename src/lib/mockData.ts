@@ -1,4 +1,5 @@
 import { RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "./networkChecks";
+import type { WifiNetwork, WifiCurrentConnection } from "./wifiScanner";
 
 export interface SecurityCheck {
   id: string;
@@ -23,6 +24,8 @@ export interface ScanResult {
   trustLabel: string;
   checks: SecurityCheck[];
   scanLog?: ScanLogEntry[];
+  wifiNetworks?: WifiNetwork[];
+  wifiCurrentConnection?: WifiCurrentConnection;
 }
 
 const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
@@ -73,6 +76,8 @@ export function buildScanResult(
   webrtcLeakedIp?: string,
   ipReputation?: IPReputationData,
   scanLog?: ScanLogEntry[],
+  wifiNetworks?: WifiNetwork[],
+  wifiCurrentConnection?: WifiCurrentConnection,
 ): ScanResult {
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
@@ -83,7 +88,7 @@ export function buildScanResult(
   const { trustScore, trustLabel } = calculateScore(checks);
 
   return {
-    networkName: "Current Network",
+    networkName: wifiCurrentConnection?.ssid || "Current Network",
     networkType: connectionInfo.type,
     ssidNote: connectionInfo.ssidNote,
     publicIp,
@@ -94,5 +99,7 @@ export function buildScanResult(
     trustLabel,
     checks,
     scanLog,
+    wifiNetworks,
+    wifiCurrentConnection,
   };
 }
