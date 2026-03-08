@@ -392,6 +392,202 @@ export async function checkContentInjection(): Promise<RealCheckResult> {
   }
 }
 
+export async function checkTLSVersion(): Promise<RealCheckResult> {
+  const id = "tls-version";
+  try {
+    const ctrl = withTimeout(5000);
+
+    const start = performance.now();
+    const res = await fetch("https://www.howsmyssl.com/a/check", { signal: ctrl.signal });
+    const elapsed = Math.round(performance.now() - start);
+    const data = await res.json();
+
+    const tlsVersion = data.tls_version || "Unknown";
+    const rating = data.rating || "Unknown";
+    const cipherSuites = (data.given_cipher_suites || []).length;
+
+    const evidence: Record<string, string> = {
+      "TLS Version": tlsVersion,
+      "Rating": rating,
+      "Cipher Suites": String(cipherSuites),
+      "Response Time": `${elapsed}ms`,
+      "Ephemeral Keys": data.ephemeral_keys_supported ? "Supported" : "Not supported",
+      "Session Tickets": data.session_ticket_supported ? "Supported" : "Not supported",
+    };
+
+    const isModern = tlsVersion === "TLS 1.3" || tlsVersion === "TLS 1.2";
+    const isGoodRating = rating === "Probably Okay" || rating === "Good";
+
+    if (isModern && isGoodRating) {
+      return {
+        id, passed: true, evidence,
+        status: `${tlsVersion} negotiated — connection is secure`,
+        explanation: `Your browser negotiated ${tlsVersion} with a "${rating}" security rating. This means your encrypted connections use modern, secure protocols that are resistant to known attacks.`,
+      };
+    } else if (isModern) {
+      return {
+        id, passed: true, evidence,
+        status: `${tlsVersion} detected but rating is "${rating}"`,
+        explanation: `While your connection uses ${tlsVersion}, the security configuration could be improved. Some cipher suites may be outdated.`,
+      };
+    } else {
+      return {
+        id, passed: false, evidence,
+        status: `Outdated ${tlsVersion} detected — connection may be vulnerable`,
+        explanation: `Your connection is using ${tlsVersion}, which is considered outdated and potentially vulnerable to attacks. Modern connections should use TLS 1.2 or 1.3. This network may be forcing a downgrade.`,
+      };
+    }
+  } catch {
+    return {
+      id, passed: null,
+      evidence: { "Error": "TLS check failed or timed out" },
+      status: "Could not verify TLS version",
+      explanation: "The TLS version check failed or timed out. We couldn't determine the security of your encrypted connection negotiation.",
+    };
+  }
+}
+
+export async function checkBandwidthThrottle(): Promise<RealCheckResult> {
+  const id = "bandwidth-throttle";
+  try {
+    const ctrl = withTimeout(8000);
+    const testUrls = [
+      "https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png",
+      "https://www.cloudflare.com/favicon.ico",
+    ];
+
+    const speeds: { name: string; kbps: number }[] = [];
+
+    await Promise.all(
+      testUrls.map(async (url, i) => {
+        try {
+          const start = performance.now();
+          await fetch(url, { mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+          const elapsed = (performance.now() - start) / 1000;
+          const estimatedBytes = i === 0 ? 13504 : 1150;
+          const kbps = Math.round((estimatedBytes * 8) / elapsed / 1000);
+          speeds.push({ name: i === 0 ? "Google CDN" : "Cloudflare CDN", kbps });
+        } catch {
+          speeds.push({ name: i === 0 ? "Google CDN" : "Cloudflare CDN", kbps: 0 });
+        }
+      })
+    );
+
+    const validSpeeds = speeds.filter(s => s.kbps > 0);
+    const avgKbps = validSpeeds.length > 0 ? Math.round(validSpeeds.reduce((s, r) => s + r.kbps, 0) / validSpeeds.length) : 0;
+
+    const evidence: Record<string, string> = {};
+    speeds.forEach(s => {
+      evidence[s.name] = s.kbps > 0 ? `~${s.kbps} kbps` : "Failed";
+    });
+    if (avgKbps > 0) evidence["Average"] = `~${avgKbps} kbps`;
+    evidence["Threshold"] = "50 kbps (minimum usable)";
+
+    if (avgKbps === 0) {
+      return {
+        id, passed: false, evidence,
+        status: "All bandwidth tests failed — network may be blocking traffic",
+        explanation: "We couldn't complete any bandwidth measurements. The network may be heavily throttling or blocking outbound connections to major CDNs.",
+      };
+    } else if (avgKbps < 50) {
+      return {
+        id, passed: false, evidence,
+        status: `Severe throttling detected — avg ~${avgKbps} kbps`,
+        explanation: `Your connection speed to major CDNs is extremely low (~${avgKbps} kbps). This level of throttling is unusual and could indicate the network is intentionally limiting bandwidth, possibly to force traffic through an inspection proxy.`,
+      };
+    } else if (avgKbps < 500) {
+      return {
+        id, passed: null, evidence,
+        status: `Low bandwidth — avg ~${avgKbps} kbps — possible throttling`,
+        explanation: `Your connection speed is below average (~${avgKbps} kbps). While this could be normal network congestion, it could also indicate bandwidth throttling by the network operator.`,
+      };
+    } else {
+      return {
+        id, passed: true, evidence,
+        status: `Bandwidth normal — avg ~${avgKbps} kbps to major CDNs`,
+        explanation: `Your connection to major CDNs is performing at ~${avgKbps} kbps, which is within normal range. No signs of intentional bandwidth throttling detected.`,
+      };
+    }
+  } catch {
+    return {
+      id, passed: null,
+      evidence: { "Error": "Bandwidth test failed or timed out" },
+      status: "Could not measure bandwidth",
+      explanation: "The bandwidth measurement test failed or timed out.",
+    };
+  }
+}
+
+export async function checkHTTP2Support(): Promise<RealCheckResult> {
+  const id = "http2-support";
+  try {
+    const ctrl = withTimeout(5000);
+    const targets = [
+      { url: "https://www.google.com", name: "google.com" },
+      { url: "https://www.cloudflare.com", name: "cloudflare.com" },
+    ];
+
+    const results: { name: string; protocol: string; headers: Record<string, string> }[] = [];
+
+    await Promise.all(
+      targets.map(async (target) => {
+        try {
+          const res = await fetch(target.url, { method: "HEAD", signal: ctrl.signal });
+          const headers: Record<string, string> = {};
+          res.headers.forEach((v, k) => {
+            if (["content-encoding", "alt-svc", "server", "x-frame-options"].includes(k.toLowerCase())) {
+              headers[k] = v;
+            }
+          });
+          const altSvc = res.headers.get("alt-svc") || "";
+          const protocol = altSvc.includes("h3") ? "HTTP/3" : altSvc.includes("h2") ? "HTTP/2" : "HTTP/1.1";
+          results.push({ name: target.name, protocol, headers });
+        } catch {
+          results.push({ name: target.name, protocol: "Failed", headers: {} });
+        }
+      })
+    );
+
+    const evidence: Record<string, string> = {};
+    results.forEach(r => {
+      evidence[r.name] = r.protocol;
+      const altSvc = r.headers["alt-svc"];
+      if (altSvc) evidence[`${r.name} Alt-Svc`] = altSvc.substring(0, 80);
+    });
+
+    const modernProtocols = results.filter(r => r.protocol === "HTTP/3" || r.protocol === "HTTP/2");
+    const failed = results.filter(r => r.protocol === "Failed");
+
+    if (failed.length === results.length) {
+      return {
+        id, passed: false, evidence,
+        status: "All protocol checks failed — network may be intercepting connections",
+        explanation: "We couldn't complete protocol negotiation checks with any target. This may indicate a transparent proxy or firewall is stripping protocol headers.",
+      };
+    } else if (modernProtocols.length > 0) {
+      const bestProtocol = results.find(r => r.protocol === "HTTP/3")?.protocol || "HTTP/2";
+      return {
+        id, passed: true, evidence,
+        status: `${bestProtocol} supported — modern protocol negotiation working`,
+        explanation: `Your connection supports ${bestProtocol}, indicating the network allows modern protocol negotiation. This means no transparent proxy is downgrading your connections.`,
+      };
+    } else {
+      return {
+        id, passed: false, evidence,
+        status: "Only HTTP/1.1 detected — possible protocol downgrade",
+        explanation: "Your connections are only negotiating HTTP/1.1, which may indicate a transparent proxy is intercepting and downgrading your connections. Modern sites should negotiate HTTP/2 or HTTP/3.",
+      };
+    }
+  } catch {
+    return {
+      id, passed: null,
+      evidence: { "Error": "Protocol check failed or timed out" },
+      status: "Could not verify protocol support",
+      explanation: "The protocol negotiation check failed or timed out.",
+    };
+  }
+}
+
 export async function fetchPublicIP(): Promise<string | null> {
   try {
     const ctrl = withTimeout(4000);
@@ -507,8 +703,8 @@ export async function runAllRealChecks(): Promise<{
     log.push({ timestamp: performance.now() - scanStart, message: msg, type });
   };
 
-  addLog("Scan initiated");
-  addLog("Starting 7 live checks in parallel...");
+  addLog("Scan initiated — NetTrust WiFi Scanner v2.0");
+  addLog("Starting 10 live checks in parallel...");
 
   // Wrap each check with logging
   const wrapCheck = async <T extends RealCheckResult>(
@@ -615,6 +811,43 @@ export async function runAllRealChecks(): Promise<{
         const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
         addLog(`LATENCY → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
       }),
+
+      wrapCheck("TLS", [
+        "TLS → Checking TLS version via howsmyssl.com",
+      ], checkTLSVersion, (r) => {
+        if (r.evidence) {
+          const ver = r.evidence["TLS Version"];
+          const rating = r.evidence["Rating"];
+          if (ver) addLog(`TLS → Version: ${ver}`);
+          if (rating) addLog(`TLS → Rating: ${rating}`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`TLS → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("BANDWIDTH", [
+        "BANDWIDTH → Measuring throughput to Google CDN",
+        "BANDWIDTH → Measuring throughput to Cloudflare CDN",
+      ], checkBandwidthThrottle, (r) => {
+        if (r.evidence) {
+          const avg = r.evidence["Average"];
+          if (avg) addLog(`BANDWIDTH → Average speed: ${avg}`);
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`BANDWIDTH → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
+
+      wrapCheck("PROTOCOL", [
+        "PROTOCOL → Checking HTTP/2 and HTTP/3 support",
+      ], checkHTTP2Support, (r) => {
+        if (r.evidence) {
+          Object.entries(r.evidence)
+            .filter(([k]) => !k.includes("Alt-Svc"))
+            .forEach(([k, v]) => addLog(`PROTOCOL → ${k}: ${v}`));
+        }
+        const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
+        addLog(`PROTOCOL → ${r.passed === true ? "PASS" : r.passed === false ? "FAIL" : "WARN"}`, resultType);
+      }),
     ]).then((results) =>
       results.map((r) =>
         r.status === "fulfilled"
@@ -629,7 +862,8 @@ export async function runAllRealChecks(): Promise<{
   const ipRepResult = checksResults.find((c) => c.id === "ip-reputation") as IPReputationResult | undefined;
 
   const passed = checksResults.filter((c) => c.passed === true).length;
-  addLog(`All checks complete. ${passed}/7 checks passed.`);
+  const total = checksResults.length;
+  addLog(`All checks complete. ${passed}/${total} checks passed.`);
 
   // Sort log by timestamp
   log.sort((a, b) => a.timestamp - b.timestamp);

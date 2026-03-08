@@ -1,4 +1,4 @@
-import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer } from "lucide-react";
+import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap } from "lucide-react";
 
 const STEPS = [
   { icon: Wifi, label: "Connect to any network" },
@@ -14,18 +14,26 @@ const CHECKS = [
   { icon: Code, name: "Content Injection Detection", desc: "Scans HTTP traffic for injected scripts, ads, or tracking code" },
   { icon: Fingerprint, name: "Public IP Reputation", desc: "Verifies your traffic exits through a legitimate ISP, not a proxy or datacenter" },
   { icon: Timer, name: "Latency Anomaly Detection", desc: "Measures round-trip times to detect suspicious traffic routing" },
+  { icon: ShieldCheck, name: "TLS Version Analysis", desc: "Checks your connection negotiates modern TLS 1.2/1.3 — detects forced downgrades" },
+  { icon: Gauge, name: "Bandwidth Throttle Detection", desc: "Measures throughput to CDNs to detect intentional traffic limiting or inspection" },
+  { icon: Layers, name: "Protocol Downgrade Detection", desc: "Verifies HTTP/2 and HTTP/3 support — detects transparent proxy interception" },
 ];
 
 const AboutScreen = () => {
   return (
-    <div className="animate-fade-in flex flex-col gap-6 pb-6">
+    <div className="animate-fade-in flex flex-col gap-5 pb-6">
       {/* Hero */}
       <div className="flex flex-col items-center gap-3 pt-6">
-        <div className="p-5 rounded-2xl bg-primary/10 border border-primary/20">
-          <Shield size={48} className="text-primary" strokeWidth={1.5} />
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full scale-150" />
+          <div className="relative p-5 rounded-2xl bg-gradient-to-b from-primary/20 to-primary/5 border border-primary/30">
+            <Shield size={48} className="text-primary" strokeWidth={1.5} />
+          </div>
         </div>
-        <h2 className="text-2xl font-bold text-foreground tracking-tight">NetTrust</h2>
-        <p className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Wi-Fi Trust Scanner</p>
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">
+          Net<span className="text-primary">Trust</span>
+        </h2>
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-primary/60">WiFi Security Scanner</p>
       </div>
 
       {/* What is TrustNet */}
@@ -34,7 +42,7 @@ const AboutScreen = () => {
           What is NetTrust?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          NetTrust analyses public Wi-Fi networks for common attack vectors before you trust them with your data. Get a clear trust rating in seconds.
+          NetTrust is the most comprehensive browser-based WiFi security scanner. It runs <strong className="text-primary">10 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
         </p>
       </div>
 
@@ -65,23 +73,22 @@ const AboutScreen = () => {
 
       {/* What We Detect */}
       <div className="glass-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-          What We Detect
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
+          <Zap size={12} className="text-primary" /> What We Detect
         </h3>
-        <p className="text-[10px] text-muted-foreground mb-3">7 live checks running against your real connection</p>
+        <p className="text-[10px] text-muted-foreground mb-3 font-mono">10 live checks running against your real connection</p>
         <div className="flex flex-col gap-3">
           {CHECKS.map((check) => {
             const Icon = check.icon;
             return (
               <div key={check.name} className="flex items-start gap-3">
-                <div className="p-1.5 rounded-lg bg-primary/10 shrink-0">
+                <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20 shrink-0">
                   <Icon size={14} className="text-primary" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-foreground">{check.name}</p>
-                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
-                      <span className="w-1 h-1 rounded-full bg-trust-safe" />
+                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-primary/10 text-primary/60 border border-primary/20">
                       Live
                     </span>
                   </div>
@@ -94,7 +101,7 @@ const AboutScreen = () => {
       </div>
 
       {/* Stat Card */}
-      <div className="glass-card p-5 border-l-4 border-l-trust-warning text-center">
+      <div className="glass-card p-5 border-l-4 border-l-trust-danger text-center">
         <p className="text-lg font-bold text-foreground leading-snug">
           "1 in 4 travellers have been hacked on public Wi-Fi"
         </p>
@@ -102,8 +109,8 @@ const AboutScreen = () => {
       </div>
 
       {/* Footer */}
-      <p className="text-[11px] text-muted-foreground/60 text-center py-2">
-        Built at Dogpatch Labs × Lovable — March 2026
+      <p className="text-[11px] text-muted-foreground/40 text-center py-2 font-mono">
+        NetTrust v2.0 — 10 live security checks
       </p>
     </div>
   );

@@ -1,61 +1,64 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @layer base {
   :root {
-    --background: 222 47% 6%;
+    --background: 225 50% 4%;
     --foreground: 210 40% 96%;
 
-    --card: 222 40% 10%;
+    --card: 225 45% 8%;
     --card-foreground: 210 40% 96%;
 
-    --popover: 222 40% 10%;
+    --popover: 225 45% 8%;
     --popover-foreground: 210 40% 96%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 6%;
+    --primary: 210 100% 55%;
+    --primary-foreground: 225 50% 4%;
 
-    --secondary: 222 30% 14%;
+    --secondary: 225 30% 12%;
     --secondary-foreground: 210 40% 90%;
 
-    --muted: 222 30% 16%;
+    --muted: 225 30% 14%;
     --muted-foreground: 215 20% 55%;
 
-    --accent: 217 91% 60%;
+    --accent: 210 100% 55%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 222 30% 18%;
-    --input: 222 30% 18%;
-    --ring: 217 91% 60%;
+    --border: 225 30% 15%;
+    --input: 225 30% 15%;
+    --ring: 210 100% 55%;
 
     --radius: 0.75rem;
 
     /* Trust score colors */
     --trust-danger: 0 72% 51%;
     --trust-warning: 38 92% 50%;
-    --trust-safe: 142 71% 45%;
+    --trust-safe: 152 76% 48%;
 
     /* Glass effect */
-    --glass-bg: 222 40% 12%;
-    --glass-border: 222 30% 22%;
+    --glass-bg: 225 45% 10%;
+    --glass-border: 225 30% 18%;
 
     /* Glow */
-    --glow-primary: 217 91% 60%;
+    --glow-primary: 210 100% 55%;
 
-    --sidebar-background: 222 47% 6%;
+    /* Cyber accent */
+    --cyber-green: 152 100% 50%;
+
+    --sidebar-background: 225 50% 4%;
     --sidebar-foreground: 210 40% 96%;
-    --sidebar-primary: 217 91% 60%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 222 30% 14%;
+    --sidebar-primary: 210 100% 55%;
+    --sidebar-primary-foreground: 225 50% 4%;
+    --sidebar-accent: 225 30% 12%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 30% 18%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-border: 225 30% 15%;
+    --sidebar-ring: 210 100% 55%;
   }
 }
 
@@ -66,12 +69,37 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, hsl(var(--trust-safe) / 0.04) 0%, transparent 50%);
+    background-attachment: fixed;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary) / 0.2);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.4);
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-card/60 backdrop-blur-xl border border-glass-border rounded-xl;
+    @apply bg-card/50 backdrop-blur-xl border border-glass-border rounded-xl;
+    background-image: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.03) 0%,
+      transparent 50%,
+      hsl(var(--trust-safe) / 0.02) 100%
+    );
   }
 
   .glow-blue {
@@ -85,17 +113,20 @@
   }
 
   .trust-glow-danger {
-    box-shadow: 0 0 30px hsl(var(--trust-danger) / 0.4);
+    box-shadow: 0 0 40px hsl(var(--trust-danger) / 0.4),
+                0 0 80px hsl(var(--trust-danger) / 0.15);
     text-shadow: 0 0 20px hsl(var(--trust-danger) / 0.5);
   }
 
   .trust-glow-warning {
-    box-shadow: 0 0 30px hsl(var(--trust-warning) / 0.4);
+    box-shadow: 0 0 40px hsl(var(--trust-warning) / 0.4),
+                0 0 80px hsl(var(--trust-warning) / 0.15);
     text-shadow: 0 0 20px hsl(var(--trust-warning) / 0.5);
   }
 
   .trust-glow-safe {
-    box-shadow: 0 0 30px hsl(var(--trust-safe) / 0.4);
+    box-shadow: 0 0 40px hsl(var(--trust-safe) / 0.4),
+                0 0 80px hsl(var(--trust-safe) / 0.15);
     text-shadow: 0 0 20px hsl(var(--trust-safe) / 0.5);
   }
 }
@@ -112,6 +143,7 @@
   .stroke-trust-safe { stroke: hsl(var(--trust-safe)); }
 }
 
+/* Glow pulse */
 @keyframes glow-pulse {
   0%, 100% {
     box-shadow: 0 0 20px hsl(var(--glow-primary) / 0.2),
@@ -124,6 +156,7 @@
   }
 }
 
+/* Slide up modal */
 @keyframes slide-up {
   from {
     transform: translateY(100%);
@@ -137,4 +170,94 @@
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+/* Radar sweep — the rotating cone */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Radar ping — expanding concentric rings */
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* WiFi wave animation */
+@keyframes wifi-wave {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Score counter animation */
+@keyframes score-count {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-score-count {
+  animation: score-count 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Scan line effect for terminal */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+/* Shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--primary) / 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* Threat level bar animation */
+@keyframes threat-bar-fill {
+  from {
+    width: 0%;
+  }
+}
+
+.animate-threat-bar {
+  animation: threat-bar-fill 1s ease-out;
 }

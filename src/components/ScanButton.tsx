@@ -7,11 +7,16 @@ interface ScanButtonProps {
 }
 
 const SCAN_MESSAGES = [
-  "Checking SSID authenticity...",
-  "Analysing ARP tables...",
-  "Verifying SSL certificates...",
-  "Inspecting DNS configuration...",
+  "Probing network topology...",
+  "Analysing DNS resolution paths...",
+  "Verifying SSL/TLS certificates...",
+  "Testing protocol negotiation...",
   "Scanning for rogue access points...",
+  "Checking WebRTC leak surface...",
+  "Measuring bandwidth integrity...",
+  "Inspecting exit node reputation...",
+  "Detecting content injection...",
+  "Analysing traffic routing...",
 ];
 
 const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
@@ -21,6 +26,9 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
   const [showComplete, setShowComplete] = useState(false);
   const [messageFade, setMessageFade] = useState(true);
   const [finalising, setFinalising] = useState(false);
+  const [liveLog, setLiveLog] = useState<ScanLogEntry[]>([]);
+  const [checksCompleted, setChecksCompleted] = useState(0);
+  const logContainerRef = useRef<HTMLDivElement>(null);
 
   const realChecksRef = useRef<{ checks: RealCheckResult[]; publicIp: string | null; webrtcLeakedIp?: string; ipReputation?: IPReputationData; scanLog: ScanLogEntry[] } | null>(null);
   const realChecksResolvedRef = useRef(false);
@@ -34,6 +42,8 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
     setShowComplete(false);
     setMessageFade(true);
     setFinalising(false);
+    setLiveLog([]);
+    setChecksCompleted(0);
     realChecksRef.current = null;
     realChecksResolvedRef.current = false;
     animDoneRef.current = false;
@@ -41,6 +51,8 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
     runAllRealChecks().then((results) => {
       realChecksRef.current = results;
       realChecksResolvedRef.current = true;
+      setLiveLog(results.scanLog);
+      setChecksCompleted(results.checks.length);
     });
   }, [scanning]);
 
@@ -53,9 +65,9 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
           clearInterval(interval);
           return 100;
         }
-        return p + 2;
+        return p + 1.5;
       });
-    }, 100);
+    }, 120);
     return () => clearInterval(interval);
   }, [scanning, showComplete, finalising]);
 
@@ -68,7 +80,7 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
         setMessageIndex((i) => (i + 1) % SCAN_MESSAGES.length);
         setMessageFade(true);
       }, 200);
-    }, 1000);
+    }, 1200);
     return () => clearInterval(interval);
   }, [scanning, showComplete]);
 
@@ -76,7 +88,6 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
   useEffect(() => {
     if (progress < 100 || !scanning || showComplete || finalising) return;
     animDoneRef.current = true;
-
     if (realChecksResolvedRef.current) {
       setShowComplete(true);
     } else {
@@ -84,14 +95,13 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
     }
   }, [progress, scanning, showComplete, finalising]);
 
-  // Finalising: wait up to 5 more seconds for real checks
+  // Finalising
   useEffect(() => {
     if (!finalising) return;
     const maxWait = setTimeout(() => {
       setFinalising(false);
       setShowComplete(true);
     }, 5000);
-
     const poll = setInterval(() => {
       if (realChecksResolvedRef.current) {
         clearTimeout(maxWait);
@@ -100,14 +110,10 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
         setShowComplete(true);
       }
     }, 200);
-
-    return () => {
-      clearTimeout(maxWait);
-      clearInterval(poll);
-    };
+    return () => { clearTimeout(maxWait); clearInterval(poll); };
   }, [finalising]);
 
-  // Completion: build result and notify parent
+  // Completion
   useEffect(() => {
     if (!showComplete || !scanning) return;
     const timer = setTimeout(() => {
@@ -118,60 +124,120 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
       setShowComplete(false);
       setFinalising(false);
       onScanComplete(result);
-    }, 1200);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [showComplete, scanning, onScanComplete]);
 
-  const radius = 72;
+  // Auto-scroll live log
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [liveLog]);
+
+  const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const strokeDashoffset = circumference - (Math.min(progress, 100) / 100) * circumference;
 
   if (!scanning) {
     return (
-      <div className="flex flex-col items-center gap-6">
+      <div className="flex flex-col items-center gap-8">
         <button
           onClick={startScan}
-          className="relative w-44 h-44 rounded-full bg-secondary border-2 border-primary/30 flex items-center justify-center glow-pulse transition-transform active:scale-95"
+          className="group relative w-48 h-48 rounded-full flex items-center justify-center transition-transform active:scale-95"
         >
-          <div className="absolute inset-0 rounded-full bg-primary/10" />
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" className="relative z-10">
-            <path d="M12 18.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="hsl(var(--primary))" />
-            <path d="M9.5 14a4 4 0 0 1 5 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M7 11a7 7 0 0 1 10 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
-            <path d="M4.5 8a10.5 10.5 0 0 1 15 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" />
+          {/* Outer ring pulses */}
+          <div className="absolute inset-[-12px] rounded-full border border-primary/20 animate-[radar-ping_3s_ease-out_infinite]" />
+          <div className="absolute inset-[-24px] rounded-full border border-primary/10 animate-[radar-ping_3s_ease-out_1s_infinite]" />
+          <div className="absolute inset-[-36px] rounded-full border border-primary/5 animate-[radar-ping_3s_ease-out_2s_infinite]" />
+
+          {/* Main button */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-b from-primary/20 to-primary/5 border-2 border-primary/40 backdrop-blur-sm" />
+          <div className="absolute inset-0 rounded-full glow-pulse" />
+
+          {/* WiFi icon */}
+          <svg width="56" height="56" viewBox="0 0 24 24" fill="none" className="relative z-10 group-hover:scale-110 transition-transform">
+            <path d="M12 19.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="hsl(var(--primary))" />
+            <path d="M9.5 15a4 4 0 0 1 5 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" className="animate-[wifi-wave_2s_ease-in-out_infinite_0.6s]" />
+            <path d="M7 12a7 7 0 0 1 10 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" className="animate-[wifi-wave_2s_ease-in-out_infinite_0.3s]" />
+            <path d="M4.5 9a10.5 10.5 0 0 1 15 0" stroke="hsl(var(--primary))" strokeWidth="1.5" strokeLinecap="round" className="animate-[wifi-wave_2s_ease-in-out_infinite]" />
           </svg>
         </button>
-        <p className="text-muted-foreground text-sm">Tap to analyse network</p>
+        <div className="text-center">
+          <p className="text-muted-foreground text-sm font-medium">Tap to scan network</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">10 live security checks</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="relative w-44 h-44 flex items-center justify-center">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
-          <circle cx="80" cy="80" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="6" />
+    <div className="flex flex-col items-center gap-4 w-full">
+      {/* Radar Scanner */}
+      <div className="relative w-48 h-48 flex items-center justify-center">
+        {/* Background grid effect */}
+        <div className="absolute inset-0 rounded-full overflow-hidden">
+          <div className="absolute inset-0 rounded-full border border-primary/10" />
+          <div className="absolute inset-[15%] rounded-full border border-primary/10" />
+          <div className="absolute inset-[30%] rounded-full border border-primary/10" />
+          <div className="absolute inset-[45%] rounded-full border border-primary/10" />
+          {/* Crosshair lines */}
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-primary/10" />
+          <div className="absolute left-0 right-0 top-1/2 h-px bg-primary/10" />
+        </div>
+
+        {/* Radar sweep */}
+        {!showComplete && (
+          <div className="absolute inset-0 rounded-full overflow-hidden">
+            <div
+              className="absolute inset-0 animate-[radar-sweep_2s_linear_infinite]"
+              style={{
+                background: "conic-gradient(from 0deg, transparent 0deg, hsl(var(--primary) / 0.3) 30deg, transparent 60deg)",
+              }}
+            />
+          </div>
+        )}
+
+        {/* Progress ring */}
+        <svg className="absolute w-full h-full -rotate-90" viewBox="0 0 180 180">
+          <circle cx="90" cy="90" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="3" opacity="0.3" />
           <circle
-            cx="80" cy="80" r={radius}
+            cx="90" cy="90" r={radius}
             fill="none"
             stroke="hsl(var(--primary))"
-            strokeWidth="6"
+            strokeWidth="3"
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
-            className="transition-all duration-100 ease-linear"
-            style={{ filter: "drop-shadow(0 0 8px hsl(var(--primary) / 0.5))" }}
+            className="transition-all duration-150 ease-linear"
+            style={{ filter: "drop-shadow(0 0 10px hsl(var(--primary) / 0.6))" }}
           />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-4xl font-bold font-mono text-foreground">
-            {showComplete ? "✓" : `${Math.min(progress, 100)}%`}
-          </span>
+
+        {/* Center display */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+          {showComplete ? (
+            <div className="flex flex-col items-center animate-fade-in">
+              <span className="text-4xl font-bold text-trust-safe">&#10003;</span>
+              <span className="text-[10px] uppercase tracking-widest text-trust-safe/80 mt-1">Complete</span>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <span className="text-3xl font-bold font-mono text-foreground tabular-nums">
+                {Math.min(Math.round(progress), 100)}%
+              </span>
+              <span className="text-[10px] uppercase tracking-widest text-primary/60 mt-1">
+                {checksCompleted > 0 ? `${checksCompleted}/10` : "scanning"}
+              </span>
+            </div>
+          )}
         </div>
       </div>
-      <div className="h-6 flex items-center">
+
+      {/* Status message */}
+      <div className="h-5 flex items-center">
         <p
-          className={`text-sm text-muted-foreground text-center transition-opacity duration-200 ${
+          className={`text-xs text-muted-foreground text-center transition-opacity duration-200 font-mono ${
             messageFade ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -182,6 +248,45 @@ const ScanButton = ({ onScanComplete }: ScanButtonProps) => {
             : SCAN_MESSAGES[messageIndex]}
         </p>
       </div>
+
+      {/* Live Terminal Output */}
+      {liveLog.length > 0 && (
+        <div className="w-full rounded-xl overflow-hidden border border-primary/20 bg-[#0a0a0f]/90 backdrop-blur-sm">
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-primary/10 bg-primary/5">
+            <div className="flex gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-trust-danger/60" />
+              <div className="w-2 h-2 rounded-full bg-trust-warning/60" />
+              <div className="w-2 h-2 rounded-full bg-trust-safe/60" />
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-primary/50">
+              nettrust — live scan
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+              <span className="text-[9px] font-mono text-trust-safe/70">LIVE</span>
+            </div>
+          </div>
+          <div
+            ref={logContainerRef}
+            className="px-3 py-2 max-h-[160px] overflow-y-auto scrollbar-thin"
+            style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}
+          >
+            {liveLog.slice(-20).map((entry, i) => {
+              const ts = (entry.timestamp / 1000).toFixed(2);
+              const typeColor = entry.type === "pass" ? "text-trust-safe"
+                : entry.type === "fail" ? "text-trust-danger"
+                : entry.type === "warn" ? "text-trust-warning"
+                : "text-muted-foreground";
+              return (
+                <div key={i} className="flex gap-0 leading-[1.5]">
+                  <span className="text-primary/40 shrink-0 text-[11px]">[{ts}s]</span>
+                  <span className={`text-[11px] ml-1.5 ${typeColor}`}>{entry.message}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

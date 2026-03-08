@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import ScanLog from "@/components/ScanLog";
-import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle } from "lucide-react";
+import { Shield, Network, Lock, Globe, Server, Check, X, ChevronDown, AlertTriangle, ShieldCheck, Info, Video, Code, Fingerprint, Timer, Wifi, Signal, Cable, HelpCircle, Gauge, Layers, Zap, Activity } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const iconMap: Record<string, React.ElementType> = {
-  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer,
+  Network, Lock, Globe, Server, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers,
 };
 
 function getTrustColor(score: number) {
@@ -54,6 +54,21 @@ const CHECK_DETAILS: Record<string, {
     risk: "Your traffic is taking unusually long to reach major internet services. This can indicate your data is being routed through additional hops — possibly a proxy, transparent gateway, or man-in-the-middle device.",
     actions: ["Compare latency on mobile data to confirm the issue is network-specific", "Use a VPN to bypass potential traffic interception", "Avoid sensitive transactions on this network"],
   },
+  "tls-version": {
+    detected: "Your connection is negotiating an outdated TLS version or has a weak security configuration, leaving encrypted communications potentially vulnerable.",
+    risk: "Older TLS versions (1.0, 1.1) have known vulnerabilities that attackers can exploit to decrypt your traffic. A network forcing TLS downgrades may be attempting to intercept encrypted data.",
+    actions: ["Ensure your browser is up to date", "Avoid entering sensitive data on this network", "Use a VPN to add an extra encryption layer"],
+  },
+  "bandwidth-throttle": {
+    detected: "Download speed tests to major CDNs showed unusually low throughput, suggesting the network may be intentionally limiting bandwidth.",
+    risk: "Severe bandwidth throttling can indicate traffic inspection — the network may be decrypting, analyzing, and re-encrypting your data, which adds significant overhead. It could also force you onto specific, potentially compromised services.",
+    actions: ["Switch to mobile data for time-sensitive tasks", "Use a VPN to prevent traffic inspection", "Verify with the network operator if throttling is intentional"],
+  },
+  "http2-support": {
+    detected: "Your connections are only negotiating HTTP/1.1 instead of modern HTTP/2 or HTTP/3 protocols, suggesting a transparent proxy may be intercepting your traffic.",
+    risk: "A transparent proxy that forces protocol downgrades can inspect and modify your traffic. This is a sign that someone on the network infrastructure is actively intercepting connections.",
+    actions: ["Use HTTPS-only mode in your browser", "Enable a VPN to bypass the transparent proxy", "Avoid this network for sensitive browsing"],
+  },
 };
 
 interface ResultsScreenProps {
@@ -73,10 +88,10 @@ const EvidenceBlock = ({ evidence }: { evidence?: Record<string, string> }) => {
       <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
         <Code size={10} /> Technical Details
       </h3>
-      <div className="bg-background/80 border border-border rounded-lg p-3 font-mono text-[11px] leading-relaxed space-y-1">
+      <div className="bg-[#0a0a0f]/80 border border-primary/10 rounded-lg p-3 font-mono text-[11px] leading-relaxed space-y-1">
         {Object.entries(evidence).map(([key, value]) => (
           <div key={key} className="flex gap-2">
-            <span className="text-muted-foreground shrink-0">{key}:</span>
+            <span className="text-primary/50 shrink-0">{key}:</span>
             <span className="text-foreground break-all">{value}</span>
           </div>
         ))}
@@ -104,7 +119,7 @@ const CheckModal = ({ check, onClose }: CheckModalProps) => {
 
         {isPassed ? (
           <div className="flex flex-col items-center gap-4 py-6">
-            <div className="p-4 rounded-2xl bg-trust-safe/10">
+            <div className="p-4 rounded-2xl bg-trust-safe/10 border border-trust-safe/20">
               <ShieldCheck size={40} className="text-trust-safe" />
             </div>
             <h2 className="text-lg font-semibold text-foreground text-center">{check.name}</h2>
@@ -127,7 +142,7 @@ const CheckModal = ({ check, onClose }: CheckModalProps) => {
         ) : (
           <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${isTimedOut ? "bg-trust-warning/10" : "bg-trust-danger/10"}`}>
+              <div className={`p-2.5 rounded-xl ${isTimedOut ? "bg-trust-warning/10 border border-trust-warning/20" : "bg-trust-danger/10 border border-trust-danger/20"}`}>
                 <AlertTriangle size={24} className={isTimedOut ? "text-trust-warning" : "text-trust-danger"} />
               </div>
               <div>
@@ -191,6 +206,55 @@ const CheckModal = ({ check, onClose }: CheckModalProps) => {
   );
 };
 
+const ThreatBreakdown = ({ checks }: { checks: SecurityCheck[] }) => {
+  const passed = checks.filter(c => c.passed === true).length;
+  const failed = checks.filter(c => c.passed === false).length;
+  const inconclusive = checks.filter(c => c.passed === null).length;
+  const total = checks.length;
+
+  return (
+    <div className="glass-card p-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+        <Activity size={14} /> Threat Breakdown
+      </h3>
+      <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-secondary mb-3">
+        {passed > 0 && (
+          <div
+            className="bg-trust-safe rounded-full animate-threat-bar"
+            style={{ width: `${(passed / total) * 100}%` }}
+          />
+        )}
+        {inconclusive > 0 && (
+          <div
+            className="bg-trust-warning rounded-full animate-threat-bar"
+            style={{ width: `${(inconclusive / total) * 100}%` }}
+          />
+        )}
+        {failed > 0 && (
+          <div
+            className="bg-trust-danger rounded-full animate-threat-bar"
+            style={{ width: `${(failed / total) * 100}%` }}
+          />
+        )}
+      </div>
+      <div className="flex justify-between text-[11px] font-mono">
+        <span className="text-trust-safe flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-trust-safe" />
+          {passed} Passed
+        </span>
+        <span className="text-trust-warning flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-trust-warning" />
+          {inconclusive} Warn
+        </span>
+        <span className="text-trust-danger flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-trust-danger" />
+          {failed} Failed
+        </span>
+      </div>
+    </div>
+  );
+};
+
 const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
   const [modalCheck, setModalCheck] = useState<SecurityCheck | null>(null);
   const color = getTrustColor(result.trustScore);
@@ -230,37 +294,43 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
   ];
 
   return (
-    <div className="animate-fade-in flex flex-col gap-5 pb-6">
+    <div className="animate-fade-in flex flex-col gap-4 pb-6">
       {/* Trust Score Gauge */}
       <div className="flex flex-col items-center gap-3 pt-2">
         <div className={`relative w-44 h-44 flex items-center justify-center rounded-full ${glowClass}`}>
           <svg className="w-full h-full -rotate-90" viewBox="0 0 160 160">
-            <circle cx="80" cy="80" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="6" />
+            <circle cx="80" cy="80" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="5" opacity="0.3" />
             <circle
               cx="80" cy="80" r={radius}
               fill="none"
               className={strokeClass}
-              strokeWidth="6"
+              strokeWidth="5"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={strokeDashoffset}
             />
           </svg>
-          <span className={`absolute text-5xl font-bold font-mono ${textClass}`}>
-            {result.trustScore}
-          </span>
+          <div className="absolute flex flex-col items-center">
+            <span className={`text-5xl font-bold font-mono ${textClass} animate-score-count`}>
+              {result.trustScore}
+            </span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">/ 100</span>
+          </div>
         </div>
         <div className="text-center">
-          <p className={`text-lg font-semibold ${textClass}`}>{result.trustLabel}</p>
-          <p className="text-muted-foreground text-sm">{result.networkType} Connection</p>
+          <p className={`text-lg font-bold ${textClass}`}>{result.trustLabel}</p>
+          <p className="text-muted-foreground text-xs font-mono mt-0.5">{result.networkType} Connection — {result.checks.length} checks completed</p>
         </div>
       </div>
+
+      {/* Threat Breakdown */}
+      <ThreatBreakdown checks={result.checks} />
 
       {/* Network Info */}
       <TooltipProvider>
         <div className="glass-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-            <Shield size={14} /> Network Info
+            <Wifi size={14} className="text-primary" /> Network Info
           </h3>
           <div className="grid grid-cols-2 gap-3">
             {networkInfo.map((item) => (
@@ -275,7 +345,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                   )}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {item.icon && <item.icon size={13} className="text-muted-foreground shrink-0" />}
+                  {item.icon && <item.icon size={13} className="text-primary/60 shrink-0" />}
                   <p className="text-sm font-mono truncate text-foreground">{item.value}</p>
                 </div>
                 {item.subtitle && (
@@ -299,7 +369,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
       {result.ipReputation && (
         <div className="glass-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-            <Fingerprint size={14} /> Network Identity
+            <Fingerprint size={14} className="text-primary" /> Network Identity
             <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
               <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
               Live
@@ -334,8 +404,8 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
 
       {/* Security Checks */}
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1">
-          Security Checks
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-1 flex items-center gap-2">
+          <Zap size={12} className="text-primary" /> Security Checks ({result.checks.length})
         </h3>
         {result.checks.map((check) => {
           const Icon = iconMap[check.icon] || Shield;
@@ -345,11 +415,11 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
             <button
               key={check.id}
               onClick={() => setModalCheck(check)}
-              className="glass-card p-3 text-left w-full transition-all duration-200 active:scale-[0.98]"
+              className="glass-card p-3 text-left w-full transition-all duration-200 active:scale-[0.98] hover:border-primary/30"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-1.5 rounded-lg ${
-                  isTimedOut ? "bg-trust-warning/10" : check.passed ? "bg-trust-safe/10" : "bg-trust-danger/10"
+                <div className={`p-1.5 rounded-lg border ${
+                  isTimedOut ? "bg-trust-warning/10 border-trust-warning/20" : check.passed ? "bg-trust-safe/10 border-trust-safe/20" : "bg-trust-danger/10 border-trust-danger/20"
                 }`}>
                   <Icon size={16} className={
                     isTimedOut ? "text-trust-warning" : check.passed ? "text-trust-safe" : "text-trust-danger"
@@ -358,13 +428,12 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium text-foreground">{check.name}</p>
-                    <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-trust-safe/10 text-trust-safe border border-trust-safe/20">
-                      <span className="w-1.5 h-1.5 rounded-full bg-trust-safe animate-pulse" />
+                    <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-1 py-0 rounded-full bg-primary/10 text-primary/60 border border-primary/20">
                       Live
                     </span>
                   </div>
-                  <p className={`text-xs ${
-                    isTimedOut ? "text-trust-warning" : check.passed ? "text-trust-safe" : "text-trust-danger"
+                  <p className={`text-[11px] leading-tight mt-0.5 ${
+                    isTimedOut ? "text-trust-warning/80" : check.passed ? "text-trust-safe/80" : "text-trust-danger/80"
                   }`}>
                     {check.status}
                   </p>
@@ -377,7 +446,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
                   ) : (
                     <X size={16} className="text-trust-danger" />
                   )}
-                  <ChevronDown size={14} className="text-muted-foreground" />
+                  <ChevronDown size={14} className="text-muted-foreground/40" />
                 </div>
               </div>
             </button>
@@ -394,7 +463,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
           return (
             <div className="glass-card p-4 border-l-4 border-l-trust-danger">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-danger mb-2 flex items-center gap-2">
-                <AlertTriangle size={14} /> Immediate Action
+                <AlertTriangle size={14} /> Immediate Action Required
               </h3>
               <p className="text-sm text-foreground/90 leading-relaxed">
                 {failedChecks.length === 1
@@ -423,10 +492,10 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
         return (
           <div className="glass-card p-4 border-l-4 border-l-trust-safe">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-safe mb-2 flex items-center gap-2">
-              <ShieldCheck size={14} /> You're Good
+              <ShieldCheck size={14} /> Network Secure
             </h3>
             <p className="text-sm text-foreground/90 leading-relaxed">
-              No threats detected. You can browse safely, but always use HTTPS and consider a VPN on public networks.
+              All {result.checks.length} security checks passed. No threats detected. You can browse safely, but always use HTTPS and consider a VPN on public networks.
             </p>
           </div>
         );
@@ -440,7 +509,7 @@ const ResultsScreen = ({ result, onScanAgain }: ResultsScreenProps) => {
       {/* Scan Again */}
       <button
         onClick={onScanAgain}
-        className="w-full py-3 rounded-xl bg-primary text-primary-foreground font-semibold text-sm transition-transform active:scale-[0.98] glow-blue"
+        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm transition-all active:scale-[0.98] glow-blue hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]"
       >
         Scan Again
       </button>
