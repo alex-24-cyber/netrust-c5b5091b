@@ -68,8 +68,11 @@ const Index = () => {
         {/* Header */}
         <header className="relative flex items-center justify-center gap-2 pt-12 pb-4 px-6">
           <div className="flex items-center gap-2 select-none">
-            <Shield size={22} className="text-primary" strokeWidth={2.5} />
-            <h1 className="text-xl font-bold tracking-tight text-foreground">NetTrust</h1>
+            <Shield size={20} className="text-primary" strokeWidth={2.5} />
+            <h1 className="text-lg font-bold tracking-tight text-foreground">
+              Net<span className="text-primary">Trust</span>
+            </h1>
+            <span className="text-[9px] font-mono uppercase tracking-wider text-primary/40 ml-1">v2.0</span>
           </div>
         </header>
 
@@ -80,7 +83,7 @@ const Index = () => {
               {(state === "idle" || state === "scanning") && (
                 <div className="flex-1 flex flex-col items-center justify-center gap-2">
                   {state === "idle" && (
-                    <p className="text-muted-foreground text-sm mb-10 text-center">
+                    <p className="text-muted-foreground/60 text-xs font-mono mb-8 text-center tracking-wide">
                       Know your network before you connect
                     </p>
                   )}
