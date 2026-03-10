@@ -536,7 +536,7 @@ export async function runAllRealChecks(): Promise<{
         "SSL → Probing google.com (HTTPS HEAD)",
         "SSL → Probing cloudflare.com (HTTPS HEAD)",
         "SSL → Probing 1.1.1.1 (HTTPS HEAD)",
-      ], checkSSL, (r) => {
+      ], () => withRetry(checkSSL), (r) => {
         if (r.evidence) {
           Object.entries(r.evidence).filter(([k]) => k !== "Error").forEach(([k, v]) => {
             addLog(`SSL → ${k} responded (${v})`);
