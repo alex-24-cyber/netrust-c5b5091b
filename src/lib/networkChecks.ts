@@ -571,7 +571,7 @@ export async function runAllRealChecks(): Promise<{
 
       wrapCheck("INJECT", [
         "INJECT → Fetching http://neverssl.com (injection test)",
-      ], checkContentInjection, (r) => {
+      ], () => withRetry(checkContentInjection), (r) => {
         if (r.evidence) {
           const size = r.evidence["Response size"];
           if (size) addLog(`INJECT → Response received (${size})`);
