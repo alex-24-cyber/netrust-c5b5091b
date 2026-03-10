@@ -5,7 +5,7 @@ import ScanLog from "@/components/ScanLog";
 import {
   ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Check, X,
   ChevronDown, ChevronUp, Lock, Globe, Server, Video, Code, Fingerprint,
-  Wifi, RefreshCw, Smartphone, Eye, Info, Terminal,
+  Wifi, RefreshCw, Smartphone, Eye, Info, Terminal, Share2,
 } from "lucide-react";
 
 /* ── plain-english check descriptions ── */
