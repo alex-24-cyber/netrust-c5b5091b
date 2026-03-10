@@ -306,6 +306,14 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
 
         {showNetworkDetails && (
           <div className="px-4 pb-4 pt-0">
+            {!result.wifiCurrentConnection?.ssid && (
+              <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-muted/30 border border-border/30">
+                <Info size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  WiFi name (SSID) isn't visible to web apps for your privacy. Check your device's WiFi settings to see which network you're on.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-2.5 text-[11px]">
               {result.publicIp && (
                 <div>
