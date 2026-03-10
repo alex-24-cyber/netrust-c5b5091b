@@ -1,4 +1,4 @@
-import { ShieldAlert, Clock, MoreHorizontal, Wrench } from "lucide-react";
+import { ShieldAlert, Clock, MoreHorizontal } from "lucide-react";
 
 interface BottomNavProps {
   activeTab: string;
