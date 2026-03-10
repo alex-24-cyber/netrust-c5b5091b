@@ -98,7 +98,7 @@ const Index = () => {
       const stored = localStorage.getItem("nettrust_history");
       if (stored) {
         const parsed = JSON.parse(stored);
-        return parsed.map((e: any) => ({ ...e, timestamp: new Date(e.timestamp) }));
+        return parsed.map((e: HistoryEntry & { timestamp: string }) => ({ ...e, timestamp: new Date(e.timestamp) }));
       }
     } catch {}
     return [];
