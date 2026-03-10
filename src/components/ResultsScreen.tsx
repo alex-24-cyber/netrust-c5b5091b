@@ -356,14 +356,26 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
         <ScanLog entries={result.scanLog} />
       )}
 
-      {/* ── SCAN AGAIN ── */}
-      <button
-        onClick={onScanAgain}
-        className="w-full py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm transition-all active:scale-[0.98] glow-blue hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)] flex items-center justify-center gap-2"
-      >
-        <RefreshCw size={16} />
-        Scan Again
-      </button>
+      {/* ── ACTIONS ── */}
+      <div className="flex gap-2">
+        <button
+          onClick={onScanAgain}
+          className="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground font-bold text-sm transition-all active:scale-[0.98] glow-blue hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)] flex items-center justify-center gap-2"
+          aria-label="Scan this network again"
+        >
+          <RefreshCw size={16} />
+          Scan Again
+        </button>
+        {onShare && (
+          <button
+            onClick={onShare}
+            className="py-3.5 px-5 rounded-xl bg-secondary border border-border/50 text-foreground font-bold text-sm transition-all active:scale-[0.98] flex items-center justify-center"
+            aria-label="Share scan results"
+          >
+            <Share2 size={16} />
+          </button>
+        )}
+      </div>
     </div>
   );
 };
