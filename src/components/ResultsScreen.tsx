@@ -104,7 +104,7 @@ interface ResultsScreenProps {
   onShare?: () => void;
 }
 
-const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreenProps) => {
+const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: ResultsScreenProps) => {
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null);
   const [showPassed, setShowPassed] = useState(false);
   const [showNetworkDetails, setShowNetworkDetails] = useState(false);
