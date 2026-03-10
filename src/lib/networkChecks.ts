@@ -12,6 +12,17 @@ function withTimeout(ms: number): AbortController {
   return ctrl;
 }
 
+/** Retry a check once if it returns null (inconclusive/timed out) */
+async function withRetry<T extends RealCheckResult>(fn: () => Promise<T>): Promise<T> {
+  const first = await fn();
+  if (first.passed === null) {
+    // Wait briefly then retry once
+    await new Promise(r => setTimeout(r, 500));
+    return fn();
+  }
+  return first;
+}
+
 export async function checkDNS(): Promise<RealCheckResult> {
   const id = "dns-hijack";
   try {
