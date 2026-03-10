@@ -251,7 +251,7 @@ const Index = () => {
             </>
           )}
 
-          {activeTab === "tools" && <ToolsScreen />}
+          
 
           {activeTab === "history" && (
             <HistoryScreen

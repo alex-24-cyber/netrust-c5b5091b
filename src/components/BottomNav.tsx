@@ -8,7 +8,6 @@ interface BottomNavProps {
 
 const tabs = [
   { id: "scan", label: "Scan", icon: ShieldAlert },
-  { id: "tools", label: "Tools", icon: Wrench },
   { id: "history", label: "History", icon: Clock },
   { id: "more", label: "More", icon: MoreHorizontal },
 ];
