@@ -1,6 +1,6 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, ChevronRight, Fingerprint, Trash2 } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, Clock, ChevronRight, Fingerprint } from "lucide-react";
 import { ScanResult } from "@/lib/mockData";
-import { getStoredFingerprints, NetworkFingerprint } from "@/lib/networkFingerprint";
+import { getStoredFingerprints } from "@/lib/networkFingerprint";
 
 interface HistoryEntry {
   id: string;
@@ -33,6 +33,12 @@ function formatDate(date: Date) {
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
+const VERDICT_TEXT = {
+  danger: "Not Safe",
+  warning: "Be Careful",
+  safe: "Safe",
+};
+
 const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps) => {
   const fingerprints = getStoredFingerprints();
 
@@ -44,7 +50,7 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
         </div>
         <h2 className="text-lg font-semibold text-foreground">No scans yet</h2>
         <p className="text-sm text-muted-foreground text-center max-w-[260px]">
-          Connect to any WiFi and scan to check if it's safe
+          Connect to any WiFi and scan to see if it's safe
         </p>
         <button
           onClick={onGoToScan}
@@ -58,19 +64,19 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 pb-6">
-      {/* Known Networks Summary */}
+      {/* Known Networks */}
       {fingerprints.length > 0 && (
         <div className="glass-card p-4">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
-            <Fingerprint size={12} className="text-primary" /> Known Networks
+            <Fingerprint size={12} className="text-primary" /> Networks You've Visited
           </h3>
           <p className="text-[11px] text-muted-foreground mb-3">
-            Networks are fingerprinted to detect changes between visits
+            We remember these so we can spot changes next time
           </p>
           <div className="flex flex-wrap gap-2">
             {fingerprints.slice(0, 8).map((fp) => {
               const avgScore = fp.trustScores.length > 0
-                ? Math.round(fp.trustScores.reduce((a, b) => a + b, 0) / fp.trustScores.length)
+                ? Math.round(fp.trustScores.reduce((a: number, b: number) => a + b, 0) / fp.trustScores.length)
                 : null;
               const level = avgScore != null ? getThreatLevel(avgScore) : null;
               return (
@@ -93,7 +99,7 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
 
       {/* Scan History */}
       <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
-        Scan History
+        Past Scans
       </h3>
       {entries.map((entry) => {
         const level = getThreatLevel(entry.result.trustScore);
@@ -109,19 +115,16 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
             className="glass-card p-4 text-left w-full transition-all duration-200 active:scale-[0.98] hover:border-primary/30"
           >
             <div className="flex items-center gap-3">
-              {/* Verdict icon */}
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${bgClass}`}>
                 <Icon size={22} className={colorClass} />
               </div>
-
-              {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-foreground truncate">
                     {entry.result.wifiCurrentConnection?.ssid || entry.result.networkName}
                   </p>
-                  <span className={`text-xs font-bold font-mono ${colorClass}`}>
-                    {entry.result.trustScore}
+                  <span className={`text-xs font-semibold ${colorClass}`}>
+                    {VERDICT_TEXT[level]}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -129,7 +132,7 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
                   {failedCount > 0 && (
                     <>
                       <span className="text-muted-foreground/30">·</span>
-                      <span className="text-[11px] text-trust-danger">{failedCount} threat{failedCount > 1 ? "s" : ""}</span>
+                      <span className="text-[11px] text-trust-danger">{failedCount} problem{failedCount > 1 ? "s" : ""}</span>
                     </>
                   )}
                 </div>
@@ -140,7 +143,6 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
                   </span>
                 </div>
               </div>
-
               <ChevronRight size={16} className="text-muted-foreground/40 shrink-0" />
             </div>
           </button>

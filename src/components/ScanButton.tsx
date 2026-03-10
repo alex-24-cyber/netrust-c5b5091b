@@ -9,14 +9,13 @@ interface ScanButtonProps {
 }
 
 const SCAN_PHASES = [
-  "Checking DNS integrity...",
-  "Validating SSL certificates...",
-  "Detecting rogue access points...",
-  "Scanning for WebRTC leaks...",
-  "Analyzing IP reputation...",
-  "Testing for content injection...",
-  "Checking TLS version...",
-  "Finalizing threat assessment...",
+  "Checking your connection...",
+  "Looking for threats...",
+  "Testing encryption...",
+  "Verifying DNS safety...",
+  "Checking for leaks...",
+  "Analyzing network...",
+  "Almost done...",
 ];
 
 const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
@@ -55,17 +54,14 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
     });
   }, [scanning]);
 
-  // Auto-start on mount if requested
   useEffect(() => {
     if (autoStart && !hasAutoStarted.current) {
       hasAutoStarted.current = true;
-      // Small delay for visual smoothness
       const t = setTimeout(startScan, 300);
       return () => clearTimeout(t);
     }
   }, [autoStart, startScan]);
 
-  // Progress animation
   useEffect(() => {
     if (!scanning) return;
     const interval = setInterval(() => {
@@ -74,7 +70,6 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
           clearInterval(interval);
           return 100;
         }
-        // Speed up toward end if checks are done
         const increment = realChecksResolvedRef.current && p > 70 ? 4 : 1.5;
         return Math.min(100, p + increment);
       });
@@ -82,7 +77,6 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
     return () => clearInterval(interval);
   }, [scanning]);
 
-  // Phase cycling
   useEffect(() => {
     if (!scanning) return;
     const interval = setInterval(() => {
@@ -91,11 +85,10 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
         setPhaseIndex((i) => (i + 1) % SCAN_PHASES.length);
         setPhaseFade(true);
       }, 150);
-    }, 1500);
+    }, 1800);
     return () => clearInterval(interval);
   }, [scanning]);
 
-  // Completion: when progress hits 100 AND checks are done
   useEffect(() => {
     if (!scanning || progress < 100) return;
 
@@ -113,13 +106,11 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
       }
     };
 
-    // If checks already done, finish after brief pause
     if (realChecksResolvedRef.current) {
       const t = setTimeout(checkAndFinish, 600);
       return () => clearTimeout(t);
     }
 
-    // Otherwise poll
     const poll = setInterval(() => {
       if (realChecksResolvedRef.current) {
         clearInterval(poll);
@@ -137,7 +128,6 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (Math.min(progress, 100) / 100) * circumference;
 
-  // Idle state: big scan button
   if (!scanning) {
     return (
       <div className="flex flex-col items-center gap-6">
@@ -145,31 +135,23 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
           onClick={startScan}
           className="group relative w-52 h-52 rounded-full flex items-center justify-center transition-transform active:scale-95"
         >
-          {/* Pulse rings */}
           <div className="absolute inset-[-12px] rounded-full border border-primary/20 animate-[radar-ping_3s_ease-out_infinite]" />
           <div className="absolute inset-[-28px] rounded-full border border-primary/10 animate-[radar-ping_3s_ease-out_1s_infinite]" />
-
-          {/* Button face */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-b from-primary/20 to-primary/5 border-2 border-primary/40 backdrop-blur-sm" />
           <div className="absolute inset-0 rounded-full glow-pulse" />
-
-          {/* Shield icon */}
           <ShieldAlert size={56} className="relative z-10 text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
         </button>
         <div className="text-center">
-          <p className="text-foreground font-semibold text-base">Tap to Scan Network</p>
-          <p className="text-muted-foreground/50 text-xs mt-1 font-mono">7 threat checks in seconds</p>
+          <p className="text-foreground font-semibold text-base">Tap to Check This WiFi</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">Takes just a few seconds</p>
         </div>
       </div>
     );
   }
 
-  // Scanning state
   return (
     <div className="flex flex-col items-center gap-5 w-full">
-      {/* Shield scanner */}
       <div className="relative w-52 h-52 flex items-center justify-center">
-        {/* Radar sweep */}
         <div className="absolute inset-0 rounded-full overflow-hidden">
           <div
             className="absolute inset-0 animate-[radar-sweep_2s_linear_infinite]"
@@ -178,8 +160,6 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
             }}
           />
         </div>
-
-        {/* Progress ring */}
         <svg className="absolute w-full h-full -rotate-90" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="3" opacity="0.3" />
           <circle
@@ -194,22 +174,18 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
             style={{ filter: "drop-shadow(0 0 8px hsl(var(--primary) / 0.5))" }}
           />
         </svg>
-
-        {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
           <Loader2 size={28} className="text-primary animate-spin mb-1" />
           <span className="text-3xl font-bold font-mono text-foreground tabular-nums">
             {Math.min(Math.round(progress), 100)}%
           </span>
           <span className="text-[10px] uppercase tracking-widest text-primary/60 mt-0.5">
-            {checksCompleted > 0 ? `${checksCompleted}/7 checks` : "scanning"}
+            scanning
           </span>
         </div>
       </div>
-
-      {/* Phase text */}
       <p
-        className={`text-xs text-muted-foreground text-center font-mono transition-opacity duration-150 h-4 ${
+        className={`text-sm text-muted-foreground text-center transition-opacity duration-150 h-5 ${
           phaseFade ? "opacity-100" : "opacity-0"
         }`}
       >
