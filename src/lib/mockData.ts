@@ -57,7 +57,7 @@ function calculateScore(checks: SecurityCheck[]): { trustScore: number; trustLab
   let score = 0;
   for (const c of checks) {
     if (c.passed === true) score += perCheck;
-    else if (c.passed === null) score += perCheck / 2;
+    else if (c.passed === null) score += perCheck * 0.75; // inconclusive ≈ likely safe, reduces score swing
   }
   const trustScore = Math.max(0, Math.min(100, Math.round(score)));
   const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
