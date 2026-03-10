@@ -585,7 +585,7 @@ export async function runAllRealChecks(): Promise<{
 
       wrapCheck("IP-REP", [
         "IP-REP → Querying ipapi.co/json",
-      ], checkIPReputation, (r) => {
+      ], () => withRetry(checkIPReputation), (r) => {
         if (r.evidence) {
           const isp = r.evidence["ISP"];
           const exit = r.evidence["Exit"];
