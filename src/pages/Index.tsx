@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { ShieldAlert } from "lucide-react";
 import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
@@ -6,27 +6,14 @@ import HistoryScreen from "@/components/HistoryScreen";
 import MoreScreen from "@/components/MoreScreen";
 import SplashScreen from "@/components/SplashScreen";
 import ConsentScreen from "@/components/ConsentScreen";
+import Toast from "@/components/Toast";
 import BottomNav from "@/components/BottomNav";
 import { ScanResult } from "@/lib/mockData";
 import { createFingerprint, compareAndStoreFingerprint, FingerprintComparison, clearFingerprints } from "@/lib/networkFingerprint";
+import { COMPLIANCE, formatComplianceRef, CHECK_COUNT } from "@/lib/compliance";
 import type { HistoryEntry } from "@/components/HistoryScreen";
 
 type AppState = "idle" | "scanning" | "results";
-
-// NIST CSF 2.0 + CWE/OWASP mappings for report generation
-const NIST_REPORT_MAP: Record<string, string> = {
-  "ssl-cert": "PR.DS-02 | CWE-295 | OWASP A02:2021",
-  "dns-hijack": "DE.CM-01 | CWE-350 | OWASP A05:2021",
-  "rogue-dhcp": "DE.AE-02 | CWE-923 | OWASP A07:2021",
-  "webrtc-leak": "PR.DS-05 | CWE-200 | OWASP A01:2021",
-  "content-inject": "DE.CM-04 | CWE-94 | OWASP A03:2021",
-  "ip-reputation": "ID.RA-02 | CWE-346",
-  "latency-anomaly": "DE.AE-03 | CWE-799",
-  "tls-version": "PR.DS-02 | CWE-326 | OWASP A02:2021",
-  "bandwidth-throttle": "DE.AE-02 | CWE-400",
-  "http2-support": "DE.CM-01 | CWE-757 | OWASP A02:2021",
-  "port-scan": "ID.RA-01 | CWE-200 | OWASP A05:2021",
-};
 
 function generateReport(result: ScanResult): string {
   const lines: string[] = [];
@@ -54,18 +41,8 @@ function generateReport(result: ScanResult): string {
 
   // NIST CSF coverage summary
   lines.push("── NIST CSF 2.0 COVERAGE ──────────────────────");
-  const nistFunctions = ["Identify", "Protect", "Detect"];
-  const fnMap: Record<string, string> = {
-    "ID.RA": "Identify", "PR.DS": "Protect",
-    "DE.CM": "Detect", "DE.AE": "Detect",
-  };
-  for (const fn of nistFunctions) {
-    const inFn = result.checks.filter(c => {
-      const ref = NIST_REPORT_MAP[c.id];
-      if (!ref) return false;
-      const cat = ref.split(" | ")[0];
-      return fnMap[cat] === fn;
-    });
+  for (const fn of ["Identify", "Protect", "Detect"] as const) {
+    const inFn = result.checks.filter(c => COMPLIANCE[c.id]?.nist.fn === fn);
     const passedInFn = inFn.filter(c => c.passed === true).length;
     lines.push(`  ${fn}: ${passedInFn}/${inFn.length} passed`);
   }
@@ -76,7 +53,8 @@ function generateReport(result: ScanResult): string {
     failed.forEach(c => {
       lines.push(`  ✗ ${c.name}`);
       lines.push(`    Status: ${c.status}`);
-      if (NIST_REPORT_MAP[c.id]) lines.push(`    Ref:    ${NIST_REPORT_MAP[c.id]}`);
+      const ref = formatComplianceRef(c.id);
+      if (ref) lines.push(`    Ref:    ${ref}`);
       if (c.evidence) {
         Object.entries(c.evidence).forEach(([k, v]) => {
           lines.push(`    ${k}: ${v}`);
@@ -89,7 +67,8 @@ function generateReport(result: ScanResult): string {
     lines.push(`── WARNINGS (${warnings.length}) ──────────────────────────`);
     warnings.forEach(c => {
       lines.push(`  ⚠ ${c.name}: ${c.status}`);
-      if (NIST_REPORT_MAP[c.id]) lines.push(`    Ref: ${NIST_REPORT_MAP[c.id]}`);
+      const ref = formatComplianceRef(c.id);
+      if (ref) lines.push(`    Ref: ${ref}`);
     });
     lines.push("");
   }
@@ -113,6 +92,7 @@ const Index = () => {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [fingerprintResult, setFingerprintResult] = useState<FingerprintComparison | null>(null);
   const [autoScan, setAutoScan] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "warning" } | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>(() => {
     try {
       const stored = localStorage.getItem("nettrust_history");
@@ -183,17 +163,22 @@ const Index = () => {
     setActiveTab("scan");
   }, []);
 
+  const showToast = useCallback((message: string, type: "success" | "warning" = "success") => {
+    setToast({ message, type });
+  }, []);
+
   const handleClearHistory = useCallback(() => {
     setHistory([]);
     localStorage.removeItem("nettrust_history");
-  }, []);
+    showToast("Scan history cleared");
+  }, [showToast]);
 
   const handleClearFingerprints = useCallback(() => {
     clearFingerprints();
-  }, []);
+    showToast("Network fingerprints cleared");
+  }, [showToast]);
 
   const handleEraseAllData = useCallback(() => {
-    // GDPR Art. 17 — Right to Erasure: delete everything
     setHistory([]);
     setResult(null);
     setFingerprintResult(null);
@@ -209,16 +194,16 @@ const Index = () => {
     if (!result) return;
     const report = generateReport(result);
 
-    // Try native share API first (mobile), fall back to clipboard
     if (navigator.share) {
       navigator.share({ title: "NetTrust Scan Report", text: report }).catch(() => {
         navigator.clipboard.writeText(report);
+        showToast("Report copied to clipboard");
       });
     } else {
       navigator.clipboard.writeText(report);
-      // Brief visual feedback would be nice but keeping it simple
+      showToast("Report copied to clipboard");
     }
-  }, [result]);
+  }, [result, showToast]);
 
   // Count active threats for nav badge
   const threatCount = result
@@ -236,6 +221,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex justify-center bg-background">
+      {toast && (
+        <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
+      )}
       <div className="w-full max-w-[430px] min-h-screen flex flex-col relative">
         {/* Header */}
         <header className="relative flex items-center justify-center gap-2 pt-12 pb-3 px-6">

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import { FingerprintComparison } from "@/lib/networkFingerprint";
+import { COMPLIANCE, formatCweBadge } from "@/lib/compliance";
 import {
   Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Check, X,
   ChevronDown, ChevronUp, Lock, Globe, Server, Video, Code, Fingerprint,
-  Timer, Gauge, Layers, Radar, Wifi, RefreshCw, Smartphone, Eye,
+  Wifi, RefreshCw, Smartphone, Eye,
 } from "lucide-react";
 
 function getThreatLevel(score: number): "safe" | "caution" | "danger" {
@@ -35,36 +36,6 @@ const VERDICTS = {
     color: "trust-danger",
     advice: "This network may be intercepting your traffic. Switch to mobile data immediately. Do not enter any passwords.",
   },
-};
-
-// NIST CSF 2.0 function mapping for each check
-const NIST_MAP: Record<string, { fn: string; category: string; subcategory: string }> = {
-  "ssl-cert":          { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-02 — Data-in-transit confidentiality" },
-  "dns-hijack":        { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-01 — Network monitoring" },
-  "rogue-dhcp":        { fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-02 — Anomalous activity detection" },
-  "webrtc-leak":       { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-05 — Data leak prevention" },
-  "content-inject":    { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-04 — Malicious code detection" },
-  "ip-reputation":     { fn: "Identify",category: "ID.RA", subcategory: "ID.RA-02 — Threat intelligence" },
-  "latency-anomaly":   { fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-03 — Event correlation" },
-  "tls-version":       { fn: "Protect", category: "PR.DS", subcategory: "PR.DS-02 — Data-in-transit confidentiality" },
-  "bandwidth-throttle":{ fn: "Detect",  category: "DE.AE", subcategory: "DE.AE-02 — Anomalous activity detection" },
-  "http2-support":     { fn: "Detect",  category: "DE.CM", subcategory: "DE.CM-01 — Network monitoring" },
-  "port-scan":         { fn: "Identify",category: "ID.RA", subcategory: "ID.RA-01 — Asset vulnerability identification" },
-};
-
-// CWE / OWASP references
-const CWE_MAP: Record<string, string> = {
-  "ssl-cert":       "CWE-295 · OWASP A02:2021",
-  "dns-hijack":     "CWE-350 · OWASP A05:2021",
-  "rogue-dhcp":     "CWE-923 · OWASP A07:2021",
-  "webrtc-leak":    "CWE-200 · OWASP A01:2021",
-  "content-inject": "CWE-94 · OWASP A03:2021",
-  "ip-reputation":  "CWE-346",
-  "latency-anomaly":"CWE-799",
-  "tls-version":    "CWE-326 · OWASP A02:2021",
-  "bandwidth-throttle": "CWE-400",
-  "http2-support":  "CWE-757 · OWASP A02:2021",
-  "port-scan":      "CWE-200 · OWASP A05:2021",
 };
 
 const THREAT_ADVICE: Record<string, {
@@ -102,30 +73,10 @@ const THREAT_ADVICE: Record<string, {
     action: "Your data may be monitored — use your own VPN to encrypt traffic",
     icon: Fingerprint,
   },
-  "latency-anomaly": {
-    threat: "Abnormal latency suggests traffic interception",
-    action: "Data is being routed through extra hops — avoid sensitive tasks",
-    icon: Timer,
-  },
   "tls-version": {
     threat: "Outdated TLS version detected",
     action: "Encrypted connections may be vulnerable — update your browser",
     icon: ShieldAlert,
-  },
-  "bandwidth-throttle": {
-    threat: "Bandwidth is being heavily throttled",
-    action: "Traffic may be decrypted and re-encrypted — use VPN or mobile data",
-    icon: Gauge,
-  },
-  "http2-support": {
-    threat: "Protocol downgrade detected — proxy intercepting traffic",
-    action: "A transparent proxy is active — use HTTPS-only mode",
-    icon: Layers,
-  },
-  "port-scan": {
-    threat: "Dangerous ports are exposed on the network",
-    action: "Services like RDP, SMB are open — avoid file sharing on this network",
-    icon: Radar,
   },
 };
 
@@ -292,14 +243,14 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                     )}
                     {/* NIST / CWE reference badges */}
                     <div className="flex flex-wrap gap-1.5">
-                      {NIST_MAP[check.id] && (
+                      {COMPLIANCE[check.id] && (
                         <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
-                          NIST {NIST_MAP[check.id].category}
+                          NIST {COMPLIANCE[check.id].nist.category}
                         </span>
                       )}
-                      {CWE_MAP[check.id] && (
+                      {formatCweBadge(check.id) && (
                         <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-danger/10 text-trust-danger/70 border border-trust-danger/20">
-                          {CWE_MAP[check.id]}
+                          {formatCweBadge(check.id)}
                         </span>
                       )}
                     </div>
@@ -349,14 +300,14 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                       </div>
                     )}
                     <div className="flex flex-wrap gap-1.5">
-                      {NIST_MAP[check.id] && (
+                      {COMPLIANCE[check.id] && (
                         <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
-                          NIST {NIST_MAP[check.id].category}
+                          NIST {COMPLIANCE[check.id].nist.category}
                         </span>
                       )}
-                      {CWE_MAP[check.id] && (
+                      {formatCweBadge(check.id) && (
                         <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-warning/10 text-trust-warning/70 border border-trust-warning/20">
-                          {CWE_MAP[check.id]}
+                          {formatCweBadge(check.id)}
                         </span>
                       )}
                     </div>
@@ -444,7 +395,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
         </h3>
         <div className="grid grid-cols-3 gap-2">
           {(["Identify", "Protect", "Detect"] as const).map((fn) => {
-            const checksInFn = result.checks.filter(c => NIST_MAP[c.id]?.fn === fn);
+            const checksInFn = result.checks.filter(c => COMPLIANCE[c.id]?.nist.fn === fn);
             const passedInFn = checksInFn.filter(c => c.passed === true).length;
             const totalInFn = checksInFn.length;
             const pct = totalInFn > 0 ? Math.round((passedInFn / totalInFn) * 100) : 0;

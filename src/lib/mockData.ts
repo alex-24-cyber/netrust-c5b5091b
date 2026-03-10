@@ -35,11 +35,7 @@ const REAL_CHECK_NAMES: Record<string, { name: string; icon: string }> = {
   "webrtc-leak": { name: "WebRTC Local IP Leak Detection", icon: "Video" },
   "content-inject": { name: "Content Injection Detection", icon: "Code" },
   "ip-reputation": { name: "Public IP Reputation", icon: "Fingerprint" },
-  "latency-anomaly": { name: "Latency Anomaly Detection", icon: "Timer" },
   "tls-version": { name: "TLS Version Analysis", icon: "ShieldCheck" },
-  "bandwidth-throttle": { name: "Bandwidth Throttle Detection", icon: "Gauge" },
-  "http2-support": { name: "Protocol Downgrade Detection", icon: "Layers" },
-  "port-scan": { name: "Port Scan (nmap-style)", icon: "Radar" },
 };
 
 function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
@@ -80,7 +76,7 @@ export function buildScanResult(
 ): ScanResult {
   const liveChecks = realResults.map(realCheckToSecurityCheck);
 
-  const checks = ["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "latency-anomaly", "tls-version", "bandwidth-throttle", "http2-support", "port-scan"]
+  const checks = ["ssl-cert", "dns-hijack", "rogue-dhcp", "webrtc-leak", "content-inject", "ip-reputation", "tls-version"]
     .map((id) => liveChecks.find((c) => c.id === id)!)
     .filter(Boolean);
 

@@ -12,11 +12,10 @@ const SCAN_PHASES = [
   "Checking DNS integrity...",
   "Validating SSL certificates...",
   "Detecting rogue access points...",
-  "Scanning for traffic interception...",
-  "Analyzing network identity...",
+  "Scanning for WebRTC leaks...",
+  "Analyzing IP reputation...",
   "Testing for content injection...",
-  "Probing open ports...",
-  "Checking protocol security...",
+  "Checking TLS version...",
   "Finalizing threat assessment...",
 ];
 
@@ -159,7 +158,7 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
         </button>
         <div className="text-center">
           <p className="text-foreground font-semibold text-base">Tap to Scan Network</p>
-          <p className="text-muted-foreground/50 text-xs mt-1 font-mono">11 threat checks in seconds</p>
+          <p className="text-muted-foreground/50 text-xs mt-1 font-mono">7 threat checks in seconds</p>
         </div>
       </div>
     );
@@ -203,7 +202,7 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
             {Math.min(Math.round(progress), 100)}%
           </span>
           <span className="text-[10px] uppercase tracking-widest text-primary/60 mt-0.5">
-            {checksCompleted > 0 ? `${checksCompleted}/11 checks` : "scanning"}
+            {checksCompleted > 0 ? `${checksCompleted}/7 checks` : "scanning"}
           </span>
         </div>
       </div>
