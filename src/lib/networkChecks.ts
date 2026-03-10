@@ -523,7 +523,7 @@ export async function runAllRealChecks(): Promise<{
       wrapCheck("DNS", [
         "DNS → Querying dns.google/resolve?name=example.com",
         "DNS → Querying cloudflare-dns.com/dns-query",
-      ], checkDNS, (r) => {
+      ], () => withRetry(checkDNS), (r) => {
         if (r.evidence) {
           if (r.evidence["Google DNS"]) addLog(`DNS → Google DNS responded: ${r.evidence["Google DNS"]}`);
           if (r.evidence["Cloudflare DNS"]) addLog(`DNS → Cloudflare DNS responded: ${r.evidence["Cloudflare DNS"]}`);
