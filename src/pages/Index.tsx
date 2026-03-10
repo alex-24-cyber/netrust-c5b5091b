@@ -4,7 +4,7 @@ import ScanButton from "@/components/ScanButton";
 import ResultsScreen from "@/components/ResultsScreen";
 import HistoryScreen from "@/components/HistoryScreen";
 import MoreScreen from "@/components/MoreScreen";
-import ToolsScreen from "@/components/ToolsScreen";
+
 import SplashScreen from "@/components/SplashScreen";
 import ConsentScreen from "@/components/ConsentScreen";
 import OnboardingScreen from "@/components/OnboardingScreen";
@@ -251,7 +251,7 @@ const Index = () => {
             </>
           )}
 
-          {activeTab === "tools" && <ToolsScreen />}
+          
 
           {activeTab === "history" && (
             <HistoryScreen
