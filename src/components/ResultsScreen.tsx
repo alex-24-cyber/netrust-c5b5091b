@@ -101,6 +101,7 @@ interface ResultsScreenProps {
   result: ScanResult;
   onScanAgain: () => void;
   fingerprintResult?: FingerprintComparison | null;
+  onShare?: () => void;
 }
 
 const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreenProps) => {
