@@ -599,7 +599,7 @@ export async function runAllRealChecks(): Promise<{
 
       wrapCheck("TLS", [
         "TLS → Checking TLS version via howsmyssl.com",
-      ], checkTLSVersion, (r) => {
+      ], () => withRetry(checkTLSVersion), (r) => {
         if (r.evidence) {
           const ver = r.evidence["TLS Version"];
           const rating = r.evidence["Rating"];
