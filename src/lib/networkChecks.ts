@@ -27,8 +27,8 @@ export async function checkDNS(): Promise<RealCheckResult> {
     const googleData = await googleRes.json();
     const cloudflareData = await cloudflareRes.json();
 
-    const googleIPs: string[] = (googleData.Answer || []).map((a: any) => a.data).filter(Boolean);
-    const cloudflareIPs: string[] = (cloudflareData.Answer || []).map((a: any) => a.data).filter(Boolean);
+    const googleIPs: string[] = (googleData.Answer || []).map((a: { data?: string }) => a.data).filter(Boolean);
+    const cloudflareIPs: string[] = (cloudflareData.Answer || []).map((a: { data?: string }) => a.data).filter(Boolean);
 
     const hasMatch = googleIPs.some((ip) => cloudflareIPs.includes(ip));
 
@@ -369,8 +369,9 @@ export async function checkContentInjection(): Promise<RealCheckResult> {
         explanation: "This network is injecting additional code into your unencrypted web traffic. This could be advertisements, tracking scripts, or malicious payloads. Any website you visit over HTTP (not HTTPS) on this network may be tampered with. Stick to HTTPS sites only, or use a VPN to encrypt all traffic.",
       };
     }
-  } catch (err: any) {
-    if (err?.message?.includes("Mixed Content") || err?.message?.includes("mixed") ||
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : "";
+    if (errMsg.includes("Mixed Content") || errMsg.includes("mixed") ||
         (typeof window !== "undefined" && window.location.protocol === "https:")) {
       return {
         id, passed: true,
@@ -665,9 +666,12 @@ export interface ConnectionInfo {
 }
 
 export function detectNetworkType(): ConnectionInfo {
-  const conn = (navigator as any).connection
-    || (navigator as any).mozConnection
-    || (navigator as any).webkitConnection;
+  const nav = navigator as Navigator & {
+    connection?: { type?: string; effectiveType?: string; downlink?: number; rtt?: number };
+    mozConnection?: { type?: string; effectiveType?: string; downlink?: number; rtt?: number };
+    webkitConnection?: { type?: string; effectiveType?: string; downlink?: number; rtt?: number };
+  };
+  const conn = nav.connection || nav.mozConnection || nav.webkitConnection;
 
   if (conn) {
     const rawType = conn.type;
