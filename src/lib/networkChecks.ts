@@ -549,7 +549,7 @@ export async function runAllRealChecks(): Promise<{
 
       wrapCheck("PORTAL", [
         "PORTAL → Fetching connectivitycheck.gstatic.com/generate_204",
-      ], checkCaptivePortal, (r) => {
+      ], () => withRetry(checkCaptivePortal), (r) => {
         const status = r.evidence?.["Received"] || "unknown";
         addLog(`PORTAL → Status ${status} received`);
         const resultType = r.passed === true ? "pass" : r.passed === false ? "fail" : "warn";
