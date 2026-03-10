@@ -407,7 +407,7 @@ export async function checkContentInjection(): Promise<RealCheckResult> {
 export async function checkTLSVersion(): Promise<RealCheckResult> {
   const id = "tls-version";
   try {
-    const ctrl = withTimeout(5000);
+    const ctrl = withTimeout(8000);
 
     const start = performance.now();
     const res = await fetch("https://www.howsmyssl.com/a/check", { signal: ctrl.signal });
