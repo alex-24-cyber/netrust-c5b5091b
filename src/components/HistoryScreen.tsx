@@ -123,6 +123,9 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
                   <p className="text-sm font-semibold text-foreground truncate">
                     {entry.result.wifiCurrentConnection?.ssid || entry.result.networkName}
                   </p>
+                  <span className={`text-[11px] font-bold font-mono ${colorClass}`}>
+                    {entry.result.trustScore}
+                  </span>
                   <span className={`text-xs font-semibold ${colorClass}`}>
                     {VERDICT_TEXT[level]}
                   </span>

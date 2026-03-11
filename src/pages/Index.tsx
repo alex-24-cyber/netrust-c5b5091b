@@ -210,6 +210,9 @@ const Index = () => {
 
   return (
     <div className="min-h-screen flex justify-center bg-background">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-lg focus:text-sm focus:font-semibold">
+        Skip to content
+      </a>
       {toast && (
         <Toast message={toast.message} type={toast.type} onDone={() => setToast(null)} />
       )}
@@ -217,7 +220,7 @@ const Index = () => {
         <ShareCard result={result} onClose={() => setShowShare(false)} onToast={(msg) => { setShowShare(false); showToast(msg); }} />
       )}
       <div className="w-full max-w-[430px] min-h-screen flex flex-col relative">
-        <header className="relative flex items-center justify-center gap-2 pt-12 pb-3 px-6">
+        <header className="relative flex items-center justify-center gap-2 pt-[max(3rem,env(safe-area-inset-top))] pb-3 px-6">
           <div className="flex items-center gap-2 select-none">
             <ShieldAlert size={20} className="text-primary" strokeWidth={2.5} aria-hidden="true" />
             <h1 className="text-lg font-bold tracking-tight text-foreground">
@@ -226,7 +229,7 @@ const Index = () => {
           </div>
         </header>
 
-        <main className="flex-1 flex flex-col px-5 overflow-y-auto" role="main">
+        <main id="main-content" className="flex-1 flex flex-col px-5 overflow-y-auto" role="main">
           {activeTab === "scan" && (
             <>
               {(state === "idle" || state === "scanning") && (

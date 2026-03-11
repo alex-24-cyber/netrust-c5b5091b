@@ -14,7 +14,7 @@ const tabs = [
 
 const BottomNav = ({ activeTab, onTabChange, threatCount }: BottomNavProps) => {
   return (
-    <nav className="glass-card rounded-none border-x-0 border-b-0 px-4 py-3 flex justify-around items-center" role="tablist" aria-label="Main navigation">
+    <nav className="glass-card rounded-none border-x-0 border-b-0 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex justify-around items-center" role="tablist" aria-label="Main navigation">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;

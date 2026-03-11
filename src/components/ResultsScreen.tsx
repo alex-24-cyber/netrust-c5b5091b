@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import { FingerprintComparison } from "@/lib/networkFingerprint";
 import ScanLog from "@/components/ScanLog";
@@ -12,6 +12,7 @@ import {
 const HUMAN_LABELS: Record<string, {
   safeLine: string;
   threatLine: string;
+  warnLine: string;
   action: string;
   icon: React.ElementType;
   techLabel: string;
@@ -19,6 +20,7 @@ const HUMAN_LABELS: Record<string, {
   "ssl-cert": {
     safeLine: "Your encrypted connections are secure",
     threatLine: "Someone may be reading your encrypted traffic",
+    warnLine: "Couldn't verify if encryption is working properly",
     action: "Don't enter passwords on this network",
     icon: Lock,
     techLabel: "SSL/TLS Certificate Validation",
@@ -26,13 +28,15 @@ const HUMAN_LABELS: Record<string, {
   "dns-hijack": {
     safeLine: "Websites are loading from the right servers",
     threatLine: "You could be redirected to fake websites",
-    action: "Enable DNS-over-HTTPS in your browser settings",
+    warnLine: "Couldn't confirm website addresses are genuine",
+    action: "Don't trust login pages — they could be fake",
     icon: Globe,
     techLabel: "DNS Integrity Check",
   },
   "rogue-dhcp": {
     safeLine: "Your network gateway looks legitimate",
     threatLine: "A rogue device may be intercepting your traffic",
+    warnLine: "Couldn't verify your network gateway",
     action: "Disconnect from this network immediately",
     icon: Server,
     techLabel: "Rogue Gateway / Captive Portal Detection",
@@ -40,20 +44,23 @@ const HUMAN_LABELS: Record<string, {
   "webrtc-leak": {
     safeLine: "Your device address is hidden",
     threatLine: "Your local device address is exposed",
+    warnLine: "Couldn't check if your device address is hidden",
     action: "Use a VPN or disable WebRTC in your browser",
     icon: Video,
     techLabel: "WebRTC IP Leak Detection",
   },
   "content-inject": {
     safeLine: "No code is being injected into web pages",
-    threatLine: "Someone is injecting code into web pages you visit",
+    threatLine: "Someone is injecting code into pages you visit",
+    warnLine: "Couldn't check for page tampering",
     action: "Only visit HTTPS websites on this network",
     icon: Code,
     techLabel: "HTTP Content Injection Detection",
   },
   "ip-reputation": {
     safeLine: "Your traffic exits through a trusted provider",
-    threatLine: "Your traffic routes through suspicious infrastructure",
+    threatLine: "Your traffic routes through suspicious servers",
+    warnLine: "Couldn't verify your connection's exit point",
     action: "Use your own VPN to encrypt your traffic",
     icon: Fingerprint,
     techLabel: "Public IP Reputation Analysis",
@@ -61,6 +68,7 @@ const HUMAN_LABELS: Record<string, {
   "tls-version": {
     safeLine: "Your connection uses modern encryption",
     threatLine: "Your connection uses outdated encryption",
+    warnLine: "Couldn't check your security protocol version",
     action: "Update your browser to the latest version",
     icon: ShieldAlert,
     techLabel: "TLS Protocol Version Analysis",
@@ -79,21 +87,21 @@ const VERDICTS = {
     title: "You're Safe",
     subtitle: "No threats found on this network",
     color: "trust-safe",
-    advice: "You can browse normally. For extra privacy on public WiFi, consider using a VPN.",
+    advice: "This network looks clean. You can browse, shop, and log in normally. Consider a VPN for extra privacy on public WiFi.",
   },
   caution: {
     icon: ShieldAlert,
     title: "Be Careful",
-    subtitle: "Some issues found — stay alert",
+    subtitle: "Some things don't look right",
     color: "trust-warning",
-    advice: "Avoid logging into bank accounts or entering sensitive info. Use a VPN if you have one, or switch to mobile data for important tasks.",
+    advice: "Avoid banking or entering passwords on this network. Use a VPN if you have one, or switch to mobile data for important tasks.",
   },
   danger: {
     icon: ShieldX,
     title: "Not Safe — Disconnect",
     subtitle: "Active threats detected on this network",
     color: "trust-danger",
-    advice: "This network may be spying on your traffic. Switch to mobile data right now. Do not enter any passwords or personal information.",
+    advice: "Someone may be watching your traffic. Switch to mobile data right now. Do not enter any passwords or personal information.",
   },
 };
 
@@ -104,6 +112,26 @@ interface ResultsScreenProps {
   onShare?: () => void;
 }
 
+/** Animated counter: counts from 0 to `target` over `duration` ms */
+function useAnimatedCount(target: number, duration = 800): number {
+  const [count, setCount] = useState(0);
+  const startRef = useRef<number | null>(null);
+  useEffect(() => {
+    startRef.current = null;
+    const step = (ts: number) => {
+      if (startRef.current === null) startRef.current = ts;
+      const elapsed = ts - startRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * target));
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+  return count;
+}
+
 const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: ResultsScreenProps) => {
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null);
   const [showPassed, setShowPassed] = useState(false);
@@ -112,6 +140,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
   const level = getThreatLevel(result.trustScore);
   const verdict = VERDICTS[level];
   const VerdictIcon = verdict.icon;
+  const displayScore = useAnimatedCount(result.trustScore);
 
   const failedChecks = result.checks.filter(c => c.passed === false);
   const warningChecks = result.checks.filter(c => c.passed === null);
@@ -119,7 +148,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
 
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (result.trustScore / 100) * circumference;
+  const strokeDashoffset = circumference - (displayScore / 100) * circumference;
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 pb-6">
@@ -142,8 +171,8 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
           </svg>
           <div className="absolute flex flex-col items-center">
             <VerdictIcon size={36} className={`text-${verdict.color} animate-score-count`} />
-            <span className={`text-4xl font-bold font-mono text-${verdict.color} mt-1`}>
-              {result.trustScore}
+            <span className={`text-4xl font-bold font-mono text-${verdict.color} mt-1 tabular-nums`}>
+              {displayScore}
             </span>
           </div>
         </div>
@@ -167,7 +196,11 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
               fingerprintResult.riskLevel === "medium" ? "text-trust-warning" :
               "text-primary"
             } />
-            <h3 className="text-sm font-semibold text-foreground">This network looks different</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {fingerprintResult.riskLevel === "high"
+                ? "This network looks different than before"
+                : "This network looks different"}
+            </h3>
           </div>
           <p className="text-xs text-foreground/80 leading-relaxed mb-2">{fingerprintResult.message}</p>
           <button
@@ -278,11 +311,37 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
           <div className="flex flex-col gap-1.5 mt-2">
             {passedChecks.map((check) => {
               const meta = HUMAN_LABELS[check.id];
+              const isExpanded = expandedCheck === check.id;
               return (
-                <div key={check.id} className="glass-card p-3 flex items-center gap-3 opacity-80">
-                  <Check size={14} className="text-trust-safe shrink-0" />
-                  <p className="text-xs text-foreground/80">{meta?.safeLine || check.name}</p>
-                </div>
+                <button
+                  key={check.id}
+                  onClick={() => setExpandedCheck(isExpanded ? null : check.id)}
+                  className="glass-card p-3 text-left w-full transition-all active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Check size={14} className="text-trust-safe shrink-0" />
+                    <p className="text-xs text-foreground/80 flex-1">{meta?.safeLine || check.name}</p>
+                    <ChevronDown size={10} className={`text-muted-foreground/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  </div>
+                  {isExpanded && check.evidence && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      {meta && (
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60 mb-1.5">
+                          <Terminal size={10} />
+                          <span className="font-mono">{meta.techLabel}</span>
+                        </div>
+                      )}
+                      <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
+                        {Object.entries(check.evidence).map(([key, value]) => (
+                          <div key={key} className="flex gap-2">
+                            <span className="text-primary/50 shrink-0">{key}:</span>
+                            <span className="text-foreground/70 break-all">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </button>
               );
             })}
           </div>
@@ -306,9 +365,9 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
         </button>
 
         {showNetworkDetails && (
-          <div className="px-4 pb-4 pt-0">
+          <div className="px-4 pb-4 pt-0 space-y-3 animate-fade-in">
             {!result.wifiCurrentConnection?.ssid && (
-              <div className="flex items-start gap-2 mb-3 p-2.5 rounded-lg bg-muted/30 border border-border/30">
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/30 border border-border/30">
                 <Info size={12} className="text-muted-foreground shrink-0 mt-0.5" />
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
                   WiFi name (SSID) isn't visible to web apps for your privacy. Check your device's WiFi settings to see which network you're on.
@@ -344,6 +403,18 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
                 <div>
                   <span className="text-muted-foreground/60">Local IP (WebRTC)</span>
                   <p className="font-mono text-foreground">{result.webrtcLocalIp}</p>
+                </div>
+              )}
+              {result.connectionInfo?.effectiveType && (
+                <div>
+                  <span className="text-muted-foreground/60">Speed Class</span>
+                  <p className="font-mono text-foreground">{result.connectionInfo.effectiveType}</p>
+                </div>
+              )}
+              {result.connectionInfo?.rtt != null && (
+                <div>
+                  <span className="text-muted-foreground/60">Latency</span>
+                  <p className="font-mono text-foreground">{result.connectionInfo.rtt}ms</p>
                 </div>
               )}
             </div>
@@ -395,7 +466,7 @@ function CheckCard({ check, variant, expanded, onToggle }: {
   return (
     <button
       onClick={onToggle}
-      className={`glass-card p-3 text-left w-full border-l-4 border-l-${colorClass} transition-all active:scale-[0.99]`}
+      className={`glass-card p-3.5 text-left w-full border-l-4 border-l-${colorClass} transition-all active:scale-[0.99]`}
     >
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg bg-${colorClass}/10 border border-${colorClass}/20`}>
@@ -403,30 +474,33 @@ function CheckCard({ check, variant, expanded, onToggle }: {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-foreground">
-            {isDanger ? (meta?.threatLine || check.name) : check.name}
+            {isDanger ? (meta?.threatLine || check.name) : (meta?.warnLine || check.name)}
           </p>
-          <p className={`text-[11px] text-${colorClass}/80 mt-0.5`}>
+          <p className={`text-xs text-${colorClass}/80 mt-0.5`}>
             {isDanger ? (meta?.action || check.status) : check.status}
           </p>
         </div>
-        {isDanger ? (
-          <X size={16} className="text-trust-danger shrink-0" />
-        ) : (
-          <AlertTriangle size={14} className="text-trust-warning shrink-0" />
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {isDanger ? (
+            <X size={14} className="text-trust-danger" />
+          ) : (
+            <AlertTriangle size={12} className="text-trust-warning" />
+          )}
+          {expanded ? <ChevronUp size={12} className="text-muted-foreground" /> : <ChevronDown size={12} className="text-muted-foreground" />}
+        </div>
       </div>
 
-      {/* Expandable tech details */}
       {expanded && (
         <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-          {/* Tech label */}
           {meta && (
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
               <Terminal size={10} />
               <span className="font-mono">{meta.techLabel}</span>
             </div>
           )}
-          {/* Raw evidence data */}
+          {check.explanation && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{check.explanation}</p>
+          )}
           {check.evidence && (
             <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
               {Object.entries(check.evidence).map(([key, value]) => (

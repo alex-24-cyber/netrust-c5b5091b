@@ -142,8 +142,8 @@ const ScanButton = ({ onScanComplete, autoStart = false }: ScanButtonProps) => {
           <ShieldAlert size={56} className="relative z-10 text-primary group-hover:scale-110 transition-transform" strokeWidth={1.5} />
         </button>
         <div className="text-center">
-          <p className="text-foreground font-semibold text-base">Tap to Check This WiFi</p>
-          <p className="text-muted-foreground/50 text-xs mt-1">Takes just a few seconds</p>
+          <p className="text-foreground font-semibold text-base">Tap to Scan This WiFi</p>
+          <p className="text-muted-foreground/50 text-xs mt-1">7 real security checks in seconds</p>
         </div>
       </div>
     );
