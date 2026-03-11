@@ -1,4 +1,4 @@
-import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, Timer, ShieldCheck, Gauge, Layers, Zap, Radar, Radio } from "lucide-react";
+import { Shield, Wifi, Scan, Award, Lock, Globe, Server, ChevronRight, Video, Code, Fingerprint, ShieldCheck, Zap, Radio } from "lucide-react";
 
 const STEPS = [
   { icon: Wifi, label: "Connect to any network" },
@@ -13,11 +13,7 @@ const CHECKS = [
   { icon: Video, name: "WebRTC IP Leak Detection", desc: "Checks if your local IP is exposed through browser WebRTC" },
   { icon: Code, name: "Content Injection Detection", desc: "Scans HTTP traffic for injected scripts, ads, or tracking code" },
   { icon: Fingerprint, name: "Public IP Reputation", desc: "Verifies your traffic exits through a legitimate ISP, not a proxy or datacenter" },
-  { icon: Timer, name: "Latency Anomaly Detection", desc: "Measures round-trip times to detect suspicious traffic routing" },
   { icon: ShieldCheck, name: "TLS Version Analysis", desc: "Checks your connection negotiates modern TLS 1.2/1.3 — detects forced downgrades" },
-  { icon: Gauge, name: "Bandwidth Throttle Detection", desc: "Measures throughput to CDNs to detect intentional traffic limiting or inspection" },
-  { icon: Layers, name: "Protocol Downgrade Detection", desc: "Verifies HTTP/2 and HTTP/3 support — detects transparent proxy interception" },
-  { icon: Radar, name: "Port Scan (nmap-style)", desc: "Probes 20 common ports via timing attacks — detects exposed services like SSH, RDP, SMB, databases" },
 ];
 
 const AboutScreen = () => {
@@ -43,7 +39,7 @@ const AboutScreen = () => {
           What is NetTrust?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">
-          NetTrust is a comprehensive WiFi security scanner that runs <strong className="text-primary">11 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
+          NetTrust is a comprehensive WiFi security scanner that runs <strong className="text-primary">7 live security checks</strong> against your real connection to detect DNS hijacking, SSL stripping, traffic interception, protocol downgrades, and more — all in seconds.
         </p>
         <p className="text-sm text-foreground/90 leading-relaxed mt-2">
           With the optional <strong className="text-primary">WiFi scanner backend</strong>, NetTrust can also detect nearby wireless networks, identify evil twin access points, and flag networks with weak or no encryption.
@@ -107,7 +103,7 @@ const AboutScreen = () => {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-2">
           <Zap size={12} className="text-primary" /> Security Checks
         </h3>
-        <p className="text-[10px] text-muted-foreground mb-3 font-mono">11 live checks running against your real connection</p>
+        <p className="text-[10px] text-muted-foreground mb-3 font-mono">7 live checks running against your real connection</p>
         <div className="flex flex-col gap-3">
           {CHECKS.map((check) => {
             const Icon = check.icon;
@@ -143,7 +139,7 @@ const AboutScreen = () => {
 
       {/* Footer */}
       <p className="text-[11px] text-muted-foreground/40 text-center py-2 font-mono">
-        NetTrust v3.0 — 11 live security checks + WiFi scanner
+        NetTrust v4.0 — 7 live security checks + WiFi scanner
       </p>
     </div>
   );

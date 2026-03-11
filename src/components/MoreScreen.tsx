@@ -1,8 +1,8 @@
 import { useState } from "react";
 import {
   Shield, ShieldCheck, Wifi, Lock, Globe, Server, Video, Code, Fingerprint,
-  Zap, Radio, Share2, Trash2, ChevronRight, Info, Settings,
-  Database, Timer, Gauge, Layers, Radar,
+  Zap, Share2, Trash2, ChevronRight, Info, Settings,
+  Database,
 } from "lucide-react";
 
 interface MoreScreenProps {
@@ -15,18 +15,13 @@ interface MoreScreenProps {
 }
 
 const CHECKS_INFO = [
-  { icon: Lock, name: "Encryption check", desc: "Makes sure no one can read your encrypted traffic" },
   { icon: Globe, name: "DNS safety", desc: "Checks websites load from the right servers" },
+  { icon: Lock, name: "Encryption check", desc: "Makes sure no one can read your encrypted traffic" },
   { icon: Server, name: "Gateway check", desc: "Detects rogue devices intercepting your connection" },
   { icon: Video, name: "IP leak check", desc: "Verifies your device address stays hidden" },
   { icon: Code, name: "Injection check", desc: "Scans for code being injected into web pages" },
   { icon: Fingerprint, name: "IP reputation", desc: "Checks your traffic exits through a trusted provider" },
-  { icon: Timer, name: "Speed check", desc: "Detects suspicious traffic routing delays" },
-  { icon: ShieldCheck, name: "Protocol check", desc: "Ensures modern encryption standards are used" },
-  { icon: Gauge, name: "Throttle check", desc: "Detects if your connection is being slowed down" },
-  { icon: Layers, name: "Downgrade check", desc: "Catches attempts to weaken your connection" },
-  { icon: Radar, name: "Port scan", desc: "Finds exposed services that shouldn't be open" },
-  { icon: Radio, name: "WiFi scanner", desc: "Discovers nearby networks and detects evil twins" },
+  { icon: ShieldCheck, name: "Protocol check", desc: "Ensures modern TLS 1.2/1.3 encryption standards are used" },
 ];
 
 const MoreScreen = ({
