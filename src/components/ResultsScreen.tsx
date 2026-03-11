@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import { FingerprintComparison } from "@/lib/networkFingerprint";
-import { COMPLIANCE, formatCweBadge } from "@/lib/compliance";
 import {
-  Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Check, X,
+  ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Check, X,
   ChevronDown, ChevronUp, Lock, Globe, Server, Video, Code, Fingerprint,
-  Wifi, RefreshCw, Smartphone, Eye,
+  Wifi, RefreshCw, Smartphone, Eye, Shield, Terminal,
 } from "lucide-react";
+import ScanLog from "./ScanLog";
 
 function getThreatLevel(score: number): "safe" | "caution" | "danger" {
   if (score <= 40) return "danger";
@@ -17,66 +17,83 @@ function getThreatLevel(score: number): "safe" | "caution" | "danger" {
 const VERDICTS = {
   safe: {
     icon: ShieldCheck,
-    title: "Network Looks Safe",
-    subtitle: "No active threats detected",
+    title: "You're Safe",
+    subtitle: "No threats found on this network",
     color: "trust-safe",
-    advice: "You can browse normally. Use HTTPS sites and consider a VPN for extra privacy on public WiFi.",
+    advice: "This network looks clean. You can browse, shop, and log in normally.",
   },
   caution: {
     icon: ShieldAlert,
-    title: "Use With Caution",
-    subtitle: "Some concerns detected",
+    title: "Be Careful",
+    subtitle: "Some things don't look right",
     color: "trust-warning",
-    advice: "Avoid logging into banking or sensitive accounts. Use a VPN if possible. Switch to mobile data for important tasks.",
+    advice: "Avoid banking or entering passwords on this network. A VPN would help protect you here.",
   },
   danger: {
     icon: ShieldX,
-    title: "Disconnect Now",
-    subtitle: "Active threats detected",
+    title: "Not Safe",
+    subtitle: "This network has serious problems",
     color: "trust-danger",
-    advice: "This network may be intercepting your traffic. Switch to mobile data immediately. Do not enter any passwords.",
+    advice: "Someone may be watching your traffic. Switch to mobile data right now.",
   },
 };
 
-const THREAT_ADVICE: Record<string, {
+/** Plain-English descriptions for each check — what non-tech users need to know */
+const FRIENDLY_CHECKS: Record<string, {
+  safe: string;
   threat: string;
   action: string;
+  inconclusive: string;
   icon: React.ElementType;
 }> = {
   "ssl-cert": {
-    threat: "SSL/TLS connections are being intercepted",
-    action: "Don't enter passwords — your encrypted traffic may be visible",
+    safe: "Your connections are encrypted and private",
+    threat: "Your encrypted connections are being intercepted",
+    action: "Don't enter any passwords on this network",
+    inconclusive: "Couldn't verify if encryption is working",
     icon: Lock,
   },
   "dns-hijack": {
-    threat: "DNS responses are being manipulated",
-    action: "You could be redirected to fake websites — enable DNS-over-HTTPS",
+    safe: "Websites are loading from the right place",
+    threat: "You might be sent to fake versions of real websites",
+    action: "Don't trust any login pages — they could be fake",
+    inconclusive: "Couldn't verify website addresses",
     icon: Globe,
   },
   "rogue-dhcp": {
-    threat: "Rogue gateway or captive portal detected",
-    action: "Your traffic may route through an attacker's machine — disconnect",
+    safe: "No one is hijacking your connection",
+    threat: "Something is intercepting your connection",
+    action: "Your traffic may be going through an attacker — disconnect",
+    inconclusive: "Couldn't check for connection hijacking",
     icon: Server,
   },
   "webrtc-leak": {
-    threat: "Your local IP is exposed via WebRTC",
-    action: "Attackers can target your device directly — disable WebRTC or use VPN",
+    safe: "Your device identity is hidden",
+    threat: "Your device's network address is exposed",
+    action: "Attackers can see your device on this network — use a VPN",
+    inconclusive: "Couldn't check if your device is exposed",
     icon: Video,
   },
   "content-inject": {
-    threat: "Code is being injected into web pages",
-    action: "Only visit HTTPS sites — HTTP traffic is being tampered with",
+    safe: "Web pages are loading without tampering",
+    threat: "Someone is inserting code into the pages you visit",
+    action: "Only visit sites starting with https:// on this network",
+    inconclusive: "Couldn't check for page tampering",
     icon: Code,
   },
   "ip-reputation": {
-    threat: "Traffic exits through suspicious infrastructure",
-    action: "Your data may be monitored — use your own VPN to encrypt traffic",
+    safe: "Your internet connection exits through a normal provider",
+    threat: "Your traffic is being routed through suspicious servers",
+    action: "Your data may be monitored — use a VPN you trust",
+    inconclusive: "Couldn't verify your connection's exit point",
     icon: Fingerprint,
   },
   "tls-version": {
-    threat: "Outdated TLS version detected",
-    action: "Encrypted connections may be vulnerable — update your browser",
-    icon: ShieldAlert,
+    safe: "Your security protocols are up to date",
+    threat: "Outdated security — your encryption could be cracked",
+    action: "Update your browser to get stronger encryption",
+    inconclusive: "Couldn't check your security protocol version",
+    icon: ShieldCheck,
   },
 };
 
@@ -87,8 +104,9 @@ interface ResultsScreenProps {
 }
 
 const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreenProps) => {
-  const [showAllChecks, setShowAllChecks] = useState(false);
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null);
+  const [showPassed, setShowPassed] = useState(false);
+  const [showTechDetails, setShowTechDetails] = useState(false);
 
   const level = getThreatLevel(result.trustScore);
   const verdict = VERDICTS[level];
@@ -104,12 +122,11 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 pb-6">
-      {/* === VERDICT SHIELD === */}
+      {/* === VERDICT === */}
       <div className="flex flex-col items-center gap-3 pt-2">
         <div className={`relative w-48 h-48 flex items-center justify-center rounded-full ${
           level === "danger" ? "trust-glow-danger" : level === "caution" ? "trust-glow-warning" : "trust-glow-safe"
         }`}>
-          {/* Score ring */}
           <svg className="absolute w-full h-full -rotate-90" viewBox="0 0 180 180">
             <circle cx="90" cy="90" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="5" opacity="0.3" />
             <circle
@@ -122,7 +139,6 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
               strokeDashoffset={strokeDashoffset}
             />
           </svg>
-          {/* Center verdict */}
           <div className="absolute flex flex-col items-center">
             <VerdictIcon size={36} className={`text-${verdict.color} animate-score-count`} />
             <span className={`text-4xl font-bold font-mono text-${verdict.color} mt-1`}>
@@ -131,10 +147,9 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
           </div>
         </div>
 
-        {/* Verdict text */}
         <div className="text-center">
           <h2 className={`text-xl font-bold text-${verdict.color}`}>{verdict.title}</h2>
-          <p className="text-muted-foreground text-xs mt-1">{verdict.subtitle}</p>
+          <p className="text-muted-foreground text-sm mt-1">{verdict.subtitle}</p>
         </div>
       </div>
 
@@ -151,7 +166,11 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
               fingerprintResult.riskLevel === "medium" ? "text-trust-warning" :
               "text-primary"
             } />
-            <h3 className="text-sm font-semibold text-foreground">Network Fingerprint Changed</h3>
+            <h3 className="text-sm font-semibold text-foreground">
+              {fingerprintResult.riskLevel === "high"
+                ? "This network looks different than before"
+                : "Some things changed on this network"}
+            </h3>
           </div>
           <p className="text-xs text-foreground/80 leading-relaxed mb-2">{fingerprintResult.message}</p>
           <div className="flex flex-col gap-1">
@@ -174,13 +193,13 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
         </div>
       )}
 
-      {/* === WHAT TO DO NOW === */}
+      {/* === WHAT TO DO === */}
       <div className={`glass-card p-4 border-l-4 ${
         level === "danger" ? "border-l-trust-danger" : level === "caution" ? "border-l-trust-warning" : "border-l-trust-safe"
       }`}>
-        <h3 className={`text-xs font-semibold uppercase tracking-wider text-${verdict.color} mb-2 flex items-center gap-2`}>
-          {level === "danger" ? <ShieldX size={14} /> : level === "caution" ? <ShieldAlert size={14} /> : <ShieldCheck size={14} />}
-          What To Do
+        <h3 className={`text-sm font-bold text-${verdict.color} mb-2 flex items-center gap-2`}>
+          {level === "danger" ? <ShieldX size={16} /> : level === "caution" ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+          What should I do?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">{verdict.advice}</p>
 
@@ -203,34 +222,38 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
         )}
       </div>
 
-      {/* === ACTIVE THREATS === */}
+      {/* === PROBLEMS FOUND === */}
       {failedChecks.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-danger px-1 flex items-center gap-2">
-            <AlertTriangle size={12} /> Active Threats ({failedChecks.length})
+          <h3 className="text-sm font-bold text-trust-danger px-1 flex items-center gap-2">
+            <AlertTriangle size={14} /> Problems Found ({failedChecks.length})
           </h3>
           {failedChecks.map((check) => {
-            const advice = THREAT_ADVICE[check.id];
-            const Icon = advice?.icon || Shield;
+            const friendly = FRIENDLY_CHECKS[check.id];
+            const Icon = friendly?.icon || Shield;
             const isExpanded = expandedCheck === check.id;
             return (
               <button
                 key={check.id}
                 onClick={() => setExpandedCheck(isExpanded ? null : check.id)}
-                className="glass-card p-3 text-left w-full border-l-4 border-l-trust-danger transition-all active:scale-[0.99]"
+                className="glass-card p-3.5 text-left w-full border-l-4 border-l-trust-danger transition-all active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-trust-danger/10 border border-trust-danger/20">
                     <Icon size={18} className="text-trust-danger" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{advice?.threat || check.name}</p>
-                    <p className="text-[11px] text-trust-danger/80 mt-0.5">{advice?.action || check.status}</p>
+                    <p className="text-sm font-semibold text-foreground">{friendly?.threat || check.name}</p>
+                    <p className="text-xs text-trust-danger/80 mt-0.5">{friendly?.action || check.status}</p>
                   </div>
-                  <X size={16} className="text-trust-danger shrink-0" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <X size={14} className="text-trust-danger" />
+                    {isExpanded ? <ChevronUp size={12} className="text-muted-foreground" /> : <ChevronDown size={12} className="text-muted-foreground" />}
+                  </div>
                 </div>
                 {isExpanded && (
                   <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
+                    <p className="text-xs text-muted-foreground leading-relaxed">{check.explanation}</p>
                     {check.evidence && (
                       <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
                         {Object.entries(check.evidence).map(([key, value]) => (
@@ -241,19 +264,6 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                         ))}
                       </div>
                     )}
-                    {/* NIST / CWE reference badges */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {COMPLIANCE[check.id] && (
-                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
-                          NIST {COMPLIANCE[check.id].nist.category}
-                        </span>
-                      )}
-                      {formatCweBadge(check.id) && (
-                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-danger/10 text-trust-danger/70 border border-trust-danger/20">
-                          {formatCweBadge(check.id)}
-                        </span>
-                      )}
-                    </div>
                   </div>
                 )}
               </button>
@@ -262,19 +272,20 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
         </div>
       )}
 
-      {/* === WARNINGS === */}
+      {/* === COULDN'T CHECK === */}
       {warningChecks.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-trust-warning px-1 flex items-center gap-2">
-            <AlertTriangle size={12} /> Inconclusive ({warningChecks.length})
+          <h3 className="text-sm font-bold text-trust-warning px-1 flex items-center gap-2">
+            <AlertTriangle size={14} /> Couldn't Verify ({warningChecks.length})
           </h3>
           {warningChecks.map((check) => {
-            const advice = THREAT_ADVICE[check.id];
-            const Icon = advice?.icon || Shield;
+            const friendly = FRIENDLY_CHECKS[check.id];
+            const Icon = friendly?.icon || Shield;
+            const isExpanded = expandedCheck === check.id;
             return (
               <button
                 key={check.id}
-                onClick={() => setExpandedCheck(expandedCheck === check.id ? null : check.id)}
+                onClick={() => setExpandedCheck(isExpanded ? null : check.id)}
                 className="glass-card p-3 text-left w-full border-l-4 border-l-trust-warning transition-all active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
@@ -282,34 +293,23 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
                     <Icon size={16} className="text-trust-warning" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{check.name}</p>
-                    <p className="text-[11px] text-trust-warning/80 mt-0.5">{check.status}</p>
+                    <p className="text-sm font-medium text-foreground">{friendly?.inconclusive || check.name}</p>
+                    <p className="text-xs text-trust-warning/80 mt-0.5">{check.status}</p>
                   </div>
-                  <AlertTriangle size={14} className="text-trust-warning shrink-0" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    <AlertTriangle size={12} className="text-trust-warning" />
+                    {isExpanded ? <ChevronUp size={12} className="text-muted-foreground" /> : <ChevronDown size={12} className="text-muted-foreground" />}
+                  </div>
                 </div>
-                {expandedCheck === check.id && (
-                  <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-                    {check.evidence && (
-                      <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
-                        {Object.entries(check.evidence).map(([key, value]) => (
-                          <div key={key} className="flex gap-2">
-                            <span className="text-primary/50 shrink-0">{key}:</span>
-                            <span className="text-foreground/70 break-all">{value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-1.5">
-                      {COMPLIANCE[check.id] && (
-                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-primary/10 text-primary/70 border border-primary/20">
-                          NIST {COMPLIANCE[check.id].nist.category}
-                        </span>
-                      )}
-                      {formatCweBadge(check.id) && (
-                        <span className="inline-flex items-center gap-1 text-[8px] font-mono uppercase tracking-wider px-2 py-1 rounded-md bg-trust-warning/10 text-trust-warning/70 border border-trust-warning/20">
-                          {formatCweBadge(check.id)}
-                        </span>
-                      )}
+                {isExpanded && check.evidence && (
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
+                      {Object.entries(check.evidence).map(([key, value]) => (
+                        <div key={key} className="flex gap-2">
+                          <span className="text-primary/50 shrink-0">{key}:</span>
+                          <span className="text-foreground/70 break-all">{value}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -319,99 +319,132 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult }: ResultsScreen
         </div>
       )}
 
-      {/* === PASSED CHECKS (collapsed by default) === */}
+      {/* === PASSED CHECKS === */}
       <div>
         <button
-          onClick={() => setShowAllChecks(!showAllChecks)}
-          className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
+          onClick={() => setShowPassed(!showPassed)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors px-1 py-1"
         >
-          {showAllChecks ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {showPassed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           <Check size={12} className="text-trust-safe" />
           {passedChecks.length} checks passed
         </button>
-        {showAllChecks && (
+        {showPassed && (
           <div className="flex flex-col gap-1.5 mt-2">
-            {passedChecks.map((check) => (
-              <div key={check.id} className="glass-card p-2.5 flex items-center gap-3 opacity-70">
-                <Check size={14} className="text-trust-safe shrink-0" />
-                <p className="text-xs text-foreground/70">{check.name}</p>
-              </div>
-            ))}
+            {passedChecks.map((check) => {
+              const friendly = FRIENDLY_CHECKS[check.id];
+              const Icon = friendly?.icon || Shield;
+              const isExpanded = expandedCheck === check.id;
+              return (
+                <button
+                  key={check.id}
+                  onClick={() => setExpandedCheck(isExpanded ? null : check.id)}
+                  className="glass-card p-2.5 text-left w-full transition-all active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-3">
+                    <Check size={14} className="text-trust-safe shrink-0" />
+                    <p className="text-xs text-foreground/80 flex-1">{friendly?.safe || check.name}</p>
+                    <ChevronDown size={10} className={`text-muted-foreground/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                  </div>
+                  {isExpanded && check.evidence && (
+                    <div className="mt-2 pt-2 border-t border-border/30">
+                      <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5">
+                        {Object.entries(check.evidence).map(([key, value]) => (
+                          <div key={key} className="flex gap-2">
+                            <span className="text-primary/50 shrink-0">{key}:</span>
+                            <span className="text-foreground/70 break-all">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* === NETWORK INFO (compact) === */}
-      <div className="glass-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-          <Wifi size={12} className="text-primary" /> Network Details
-        </h3>
-        <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-          <div>
-            <span className="text-muted-foreground/60">Network</span>
-            <p className="font-mono text-foreground truncate">{result.wifiCurrentConnection?.ssid || result.networkName}</p>
+      {/* === TECH DETAILS (for power users) === */}
+      <div className="glass-card overflow-hidden">
+        <button
+          onClick={() => setShowTechDetails(!showTechDetails)}
+          className="w-full flex items-center justify-between px-4 py-3 transition-colors hover:bg-secondary/30"
+        >
+          <div className="flex items-center gap-2">
+            <Terminal size={14} className="text-primary" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Technical Details
+            </span>
           </div>
-          <div>
-            <span className="text-muted-foreground/60">Type</span>
-            <p className="font-mono text-foreground">{result.networkType}</p>
-          </div>
-          {result.publicIp && (
-            <div>
-              <span className="text-muted-foreground/60">Public IP</span>
-              <p className="font-mono text-foreground">{result.publicIp}</p>
-            </div>
-          )}
-          {result.ipReputation && (
-            <>
-              <div>
-                <span className="text-muted-foreground/60">ISP</span>
-                <p className="font-mono text-foreground truncate">{result.ipReputation.org}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground/60">Location</span>
-                <p className="font-mono text-foreground truncate">{result.ipReputation.city}, {result.ipReputation.country}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground/60">IP Type</span>
-                <p className={`font-mono font-medium ${result.ipReputation.isSuspicious ? "text-trust-danger" : "text-trust-safe"}`}>
-                  {result.ipReputation.ipType}
-                </p>
-              </div>
-            </>
-          )}
-          {result.webrtcLocalIp && (
-            <div>
-              <span className="text-muted-foreground/60">Local IP (WebRTC)</span>
-              <p className="font-mono text-foreground">{result.webrtcLocalIp}</p>
-            </div>
-          )}
-        </div>
-      </div>
+          <ChevronDown
+            size={14}
+            className={`text-muted-foreground transition-transform duration-200 ${showTechDetails ? "rotate-180" : ""}`}
+          />
+        </button>
 
-      {/* === NIST CSF COVERAGE === */}
-      <div className="glass-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
-          <Shield size={12} className="text-primary" /> NIST CSF 2.0 Coverage
-        </h3>
-        <div className="grid grid-cols-3 gap-2">
-          {(["Identify", "Protect", "Detect"] as const).map((fn) => {
-            const checksInFn = result.checks.filter(c => COMPLIANCE[c.id]?.nist.fn === fn);
-            const passedInFn = checksInFn.filter(c => c.passed === true).length;
-            const totalInFn = checksInFn.length;
-            const pct = totalInFn > 0 ? Math.round((passedInFn / totalInFn) * 100) : 0;
-            const color = pct >= 80 ? "text-trust-safe" : pct >= 50 ? "text-trust-warning" : "text-trust-danger";
-            return (
-              <div key={fn} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-secondary/30">
-                <span className={`text-lg font-bold font-mono ${color}`}>{pct}%</span>
-                <span className="text-[9px] font-mono uppercase tracking-wider text-muted-foreground">{fn}</span>
-                <span className="text-[8px] text-muted-foreground/50">{passedInFn}/{totalInFn} checks</span>
+        {showTechDetails && (
+          <div className="px-4 pb-4 space-y-3 animate-fade-in">
+            {/* Network info */}
+            <div className="grid grid-cols-2 gap-2.5 text-[11px]">
+              <div>
+                <span className="text-muted-foreground/60">Network</span>
+                <p className="font-mono text-foreground truncate">{result.wifiCurrentConnection?.ssid || result.networkName}</p>
               </div>
-            );
-          })}
-        </div>
-        <p className="text-[9px] text-muted-foreground/50 mt-2 text-center font-mono">
-          Mapped to NIST Cybersecurity Framework 2.0 functions
-        </p>
+              <div>
+                <span className="text-muted-foreground/60">Type</span>
+                <p className="font-mono text-foreground">{result.networkType}</p>
+              </div>
+              {result.publicIp && (
+                <div>
+                  <span className="text-muted-foreground/60">Public IP</span>
+                  <p className="font-mono text-foreground">{result.publicIp}</p>
+                </div>
+              )}
+              {result.ipReputation && (
+                <>
+                  <div>
+                    <span className="text-muted-foreground/60">ISP</span>
+                    <p className="font-mono text-foreground truncate">{result.ipReputation.org}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60">Location</span>
+                    <p className="font-mono text-foreground truncate">{result.ipReputation.city}, {result.ipReputation.country}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/60">IP Type</span>
+                    <p className={`font-mono font-medium ${result.ipReputation.isSuspicious ? "text-trust-danger" : "text-trust-safe"}`}>
+                      {result.ipReputation.ipType}
+                    </p>
+                  </div>
+                </>
+              )}
+              {result.webrtcLocalIp && (
+                <div>
+                  <span className="text-muted-foreground/60">Local IP (WebRTC)</span>
+                  <p className="font-mono text-foreground">{result.webrtcLocalIp}</p>
+                </div>
+              )}
+              {result.connectionInfo?.effectiveType && (
+                <div>
+                  <span className="text-muted-foreground/60">Speed Class</span>
+                  <p className="font-mono text-foreground">{result.connectionInfo.effectiveType}</p>
+                </div>
+              )}
+              {result.connectionInfo?.rtt != null && (
+                <div>
+                  <span className="text-muted-foreground/60">Latency</span>
+                  <p className="font-mono text-foreground">{result.connectionInfo.rtt}ms</p>
+                </div>
+              )}
+            </div>
+
+            {/* Scan log */}
+            {result.scanLog && result.scanLog.length > 0 && (
+              <ScanLog entries={result.scanLog} />
+            )}
+          </div>
+        )}
       </div>
 
       {/* === SCAN AGAIN === */}
