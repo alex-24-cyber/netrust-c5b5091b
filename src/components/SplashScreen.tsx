@@ -38,7 +38,7 @@ const SplashScreen = ({ onDismiss }: SplashScreenProps) => {
           Net<span className="text-primary">Trust</span>
         </h1>
         <p className="text-[11px] font-mono uppercase tracking-[0.25em] text-primary/50">
-          WiFi Threat Scanner
+          WiFi Security Scanner
         </p>
       </div>
     </div>

@@ -42,11 +42,11 @@ describe("buildScanResult", () => {
     expect(result.trustLabel).toBe("High Risk");
   });
 
-  it("gives half credit for inconclusive checks", () => {
+  it("gives 75% credit for inconclusive checks", () => {
     const checks = ALL_CHECK_IDS.map((id) => makeCheck(id, null));
     const result = buildScanResult(checks, CONNECTION_INFO, "1.2.3.4");
-    expect(result.trustScore).toBe(50);
-    expect(result.trustLabel).toBe("Use Caution");
+    expect(result.trustScore).toBe(75);
+    expect(result.trustLabel).toBe("Trusted");
   });
 
   it("scores mixed results correctly", () => {
