@@ -1,0 +1,21 @@
+{
+  "name": "NetTrust — WiFi Security Scanner",
+  "short_name": "NetTrust",
+  "description": "Scan any WiFi network for security threats in seconds. 7 live checks detect DNS hijacking, SSL stripping, rogue gateways, content injection, and more.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0b14",
+  "theme_color": "#0a0b14",
+  "categories": ["utilities", "security", "productivity"],
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

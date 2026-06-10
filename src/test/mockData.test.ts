@@ -42,22 +42,35 @@ describe("buildScanResult", () => {
     expect(result.trustLabel).toBe("High Risk");
   });
 
-  it("gives 75% credit for inconclusive checks", () => {
+  it("declines to give a verdict when nothing could be verified", () => {
+    // All checks inconclusive — we shouldn't pretend the network is trusted.
     const checks = ALL_CHECK_IDS.map((id) => makeCheck(id, null));
     const result = buildScanResult(checks, CONNECTION_INFO, "1.2.3.4");
-    expect(result.trustScore).toBe(75);
-    expect(result.trustLabel).toBe("Trusted");
+    expect(result.band).toBe("unknown");
+    expect(result.trustLabel).toBe("Unverified");
+    expect(result.confidence).toBe(0);
   });
 
-  it("scores mixed results correctly", () => {
-    // 5 pass, 1 fail, 1 inconclusive = ~5*14.3 + 0 + 7.1 = ~78.6 → 79
+  it("weights low-severity failures lightly", () => {
+    // 5 critical/high checks pass, only the low-weight exit-point check fails,
+    // and TLS is inconclusive. The verdict should still be Trusted.
     const checks = ALL_CHECK_IDS.map((id, i) =>
       makeCheck(id, i < 5 ? true : i === 5 ? false : null)
     );
     const result = buildScanResult(checks, CONNECTION_INFO, "1.2.3.4");
-    expect(result.trustScore).toBeGreaterThan(70);
-    expect(result.trustScore).toBeLessThan(90);
+    expect(result.trustScore).toBeGreaterThanOrEqual(85);
+    expect(result.band).toBe("safe");
     expect(result.trustLabel).toBe("Trusted");
+  });
+
+  it("caps the score into High Risk on a critical failure", () => {
+    // Everything passes except DNS hijacking — a confident critical detection.
+    const checks = ALL_CHECK_IDS.map((id) => makeCheck(id, id !== "dns-hijack"));
+    const result = buildScanResult(checks, CONNECTION_INFO, "1.2.3.4");
+    expect(result.band).toBe("danger");
+    expect(result.trustLabel).toBe("High Risk");
+    expect(result.trustScore).toBeLessThanOrEqual(35);
+    expect(result.scoreBreakdown?.capped).toBe(true);
   });
 
   it("orders checks in canonical order", () => {

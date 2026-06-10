@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { ScanResult, SecurityCheck } from "@/lib/mockData";
 import { FingerprintComparison } from "@/lib/networkFingerprint";
+import { resolveBand, metaFor, type TrustBand } from "@/lib/scoring";
+import { UserMode } from "@/lib/userMode";
 import ScanLog from "@/components/ScanLog";
 import {
-  ShieldCheck, ShieldAlert, ShieldX, AlertTriangle, Check, X,
+  ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion, AlertTriangle, Check, X,
   ChevronDown, ChevronUp, Lock, Globe, Server, Video, Code, Fingerprint,
-  Wifi, RefreshCw, Smartphone, Eye, Info, Terminal, Share2,
+  Wifi, RefreshCw, Smartphone, Eye, Info, Terminal, Share2, Gauge,
 } from "lucide-react";
 
 /* ── plain-english check descriptions ── */
@@ -75,13 +77,13 @@ const HUMAN_LABELS: Record<string, {
   },
 };
 
-function getThreatLevel(score: number): "safe" | "caution" | "danger" {
-  if (score <= 40) return "danger";
-  if (score <= 70) return "caution";
-  return "safe";
-}
-
-const VERDICTS = {
+const VERDICTS: Record<TrustBand, {
+  icon: React.ElementType;
+  title: string;
+  subtitle: string;
+  color: string;
+  advice: string;
+}> = {
   safe: {
     icon: ShieldCheck,
     title: "You're Safe",
@@ -103,6 +105,13 @@ const VERDICTS = {
     color: "trust-danger",
     advice: "Someone may be watching your traffic. Switch to mobile data right now. Do not enter any passwords or personal information.",
   },
+  unknown: {
+    icon: ShieldQuestion,
+    title: "Couldn't Verify",
+    subtitle: "Too many checks couldn't complete",
+    color: "primary",
+    advice: "We couldn't run enough tests to judge this network — it may be blocking our checks or the connection is unstable. Move closer to the router and scan again, and hold off on anything sensitive until you get a clear result.",
+  },
 };
 
 interface ResultsScreenProps {
@@ -110,6 +119,7 @@ interface ResultsScreenProps {
   onScanAgain: () => void;
   fingerprintResult?: FingerprintComparison | null;
   onShare?: () => void;
+  mode: UserMode;
 }
 
 /** Animated counter: counts from 0 to `target` over `duration` ms */
@@ -132,30 +142,36 @@ function useAnimatedCount(target: number, duration = 800): number {
   return count;
 }
 
-const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: ResultsScreenProps) => {
+const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare, mode }: ResultsScreenProps) => {
+  const isExpert = mode === "expert";
   const [expandedCheck, setExpandedCheck] = useState<string | null>(null);
-  const [showPassed, setShowPassed] = useState(false);
+  const [showPassed, setShowPassed] = useState(isExpert);
   const [showNetworkDetails, setShowNetworkDetails] = useState(false);
+  const [showMethodology, setShowMethodology] = useState(false);
 
-  const level = getThreatLevel(result.trustScore);
+  const level = resolveBand(result);
   const verdict = VERDICTS[level];
   const VerdictIcon = verdict.icon;
+  const isUnknown = level === "unknown";
   const displayScore = useAnimatedCount(result.trustScore);
 
   const failedChecks = result.checks.filter(c => c.passed === false);
   const warningChecks = result.checks.filter(c => c.passed === null);
   const passedChecks = result.checks.filter(c => c.passed === true);
+  const breakdown = result.scoreBreakdown;
 
   const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (displayScore / 100) * circumference;
+  // For the unknown state the ring tracks confidence, not score.
+  const ringPct = isUnknown ? Math.round((result.confidence ?? 0) * 100) : displayScore;
+  const strokeDashoffset = circumference - (ringPct / 100) * circumference;
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 pb-6">
       {/* ── VERDICT SHIELD ── */}
       <div className="flex flex-col items-center gap-4 pt-2">
         <div className={`relative w-48 h-48 flex items-center justify-center rounded-full ${
-          level === "danger" ? "trust-glow-danger" : level === "caution" ? "trust-glow-warning" : "trust-glow-safe"
+          level === "danger" ? "trust-glow-danger" : level === "caution" ? "trust-glow-warning" : level === "safe" ? "trust-glow-safe" : ""
         }`}>
           <svg className="absolute w-full h-full -rotate-90" viewBox="0 0 180 180">
             <circle cx="90" cy="90" r={radius} fill="none" stroke="hsl(var(--secondary))" strokeWidth="5" opacity="0.3" />
@@ -172,7 +188,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
           <div className="absolute flex flex-col items-center">
             <VerdictIcon size={36} className={`text-${verdict.color} animate-score-count`} />
             <span className={`text-4xl font-bold font-mono text-${verdict.color} mt-1 tabular-nums`}>
-              {displayScore}
+              {isUnknown ? "?" : displayScore}
             </span>
           </div>
         </div>
@@ -180,6 +196,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
         <div className="text-center">
           <h2 className={`text-xl font-bold text-${verdict.color}`}>{verdict.title}</h2>
           <p className="text-muted-foreground text-sm mt-1">{verdict.subtitle}</p>
+          {breakdown && <ConfidenceChip result={result} expert={isExpert} />}
         </div>
       </div>
 
@@ -234,10 +251,10 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
 
       {/* ── WHAT TO DO ── */}
       <div className={`glass-card p-4 border-l-4 ${
-        level === "danger" ? "border-l-trust-danger" : level === "caution" ? "border-l-trust-warning" : "border-l-trust-safe"
+        level === "danger" ? "border-l-trust-danger" : level === "caution" ? "border-l-trust-warning" : level === "safe" ? "border-l-trust-safe" : "border-l-primary"
       }`}>
         <h3 className={`text-sm font-semibold text-${verdict.color} mb-2 flex items-center gap-2`}>
-          {level === "danger" ? <ShieldX size={16} /> : level === "caution" ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+          <VerdictIcon size={16} />
           What should I do?
         </h3>
         <p className="text-sm text-foreground/90 leading-relaxed">{verdict.advice}</p>
@@ -272,6 +289,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
               key={check.id}
               check={check}
               variant="danger"
+              expert={isExpert}
               expanded={expandedCheck === check.id}
               onToggle={() => setExpandedCheck(expandedCheck === check.id ? null : check.id)}
             />
@@ -290,6 +308,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
               key={check.id}
               check={check}
               variant="warning"
+              expert={isExpert}
               expanded={expandedCheck === check.id}
               onToggle={() => setExpandedCheck(expandedCheck === check.id ? null : check.id)}
             />
@@ -321,6 +340,7 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
                   <div className="flex items-center gap-3">
                     <Check size={14} className="text-trust-safe shrink-0" />
                     <p className="text-xs text-foreground/80 flex-1">{meta?.safeLine || check.name}</p>
+                    {isExpert && <WeightChip id={check.id} />}
                     <ChevronDown size={10} className={`text-muted-foreground/40 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                   </div>
                   {isExpanded && check.evidence && (
@@ -347,6 +367,58 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
           </div>
         )}
       </div>
+
+      {/* ── HOW WE SCORED THIS (expert) ── */}
+      {isExpert && breakdown && (
+        <div className="glass-card overflow-hidden">
+          <button
+            onClick={() => setShowMethodology(!showMethodology)}
+            className="w-full flex items-center justify-between p-4"
+          >
+            <div className="flex items-center gap-2">
+              <Gauge size={14} className="text-primary" />
+              <span className="text-sm font-semibold text-foreground">How we scored this</span>
+            </div>
+            <ChevronDown size={14} className={`text-muted-foreground transition-transform duration-200 ${showMethodology ? "rotate-180" : ""}`} />
+          </button>
+          {showMethodology && (
+            <div className="px-4 pb-4 pt-0 space-y-2 animate-fade-in">
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Each check carries a severity weight. The score is the share of
+                <span className="text-foreground"> verifiable </span>
+                weight that passed — checks we couldn't run are excluded rather than guessed.
+              </p>
+              <div className="flex flex-col gap-1 mt-1">
+                {result.checks.map((c) => {
+                  const m = metaFor(c.id);
+                  const human = HUMAN_LABELS[c.id];
+                  const passedIcon = c.passed === true
+                    ? <Check size={12} className="text-trust-safe" />
+                    : c.passed === false
+                    ? <X size={12} className="text-trust-danger" />
+                    : <AlertTriangle size={11} className="text-trust-warning" />;
+                  return (
+                    <div key={c.id} className="flex items-center gap-2 text-[11px] font-mono">
+                      <span className="w-4 flex justify-center">{passedIcon}</span>
+                      <span className="flex-1 text-foreground/70 truncate">{human?.techLabel || c.name}</span>
+                      {m.critical && <span className="text-[8px] uppercase tracking-wider text-trust-danger/70 border border-trust-danger/30 rounded px-1">crit</span>}
+                      <span className="text-muted-foreground/60 tabular-nums">{m.weight} pts</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="bg-[#0a0a0f]/80 rounded-lg p-2.5 font-mono text-[10px] leading-relaxed space-y-0.5 mt-2">
+                <div className="flex gap-2"><span className="text-primary/50">Verified weight:</span><span className="text-foreground/70">{breakdown.completedWeight} / {breakdown.totalWeight} pts ({Math.round(breakdown.confidence * 100)}% confidence)</span></div>
+                <div className="flex gap-2"><span className="text-primary/50">Passed weight:</span><span className="text-foreground/70">{breakdown.passedWeight} / {breakdown.completedWeight} pts</span></div>
+                <div className="flex gap-2"><span className="text-primary/50">Trust score:</span><span className="text-foreground/70">{breakdown.score} / 100 — {breakdown.label}</span></div>
+                {breakdown.capped && (
+                  <div className="flex gap-2 text-trust-danger"><span className="shrink-0">⚠ Capped:</span><span>a critical check failed, so the score is limited to {breakdown.score}.</span></div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── NETWORK INFO (collapsible) ── */}
       <div className="glass-card overflow-hidden">
@@ -422,8 +494,8 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
         )}
       </div>
 
-      {/* ── SCAN LOG (tech users) ── */}
-      {result.scanLog && result.scanLog.length > 0 && (
+      {/* ── SCAN LOG (expert only) ── */}
+      {isExpert && result.scanLog && result.scanLog.length > 0 && (
         <ScanLog entries={result.scanLog} />
       )}
 
@@ -451,12 +523,39 @@ const ResultsScreen = ({ result, onScanAgain, fingerprintResult, onShare }: Resu
   );
 };
 
+/* ── Confidence indicator under the verdict ── */
+function ConfidenceChip({ result, expert }: { result: ScanResult; expert: boolean }) {
+  const b = result.scoreBreakdown;
+  if (!b) return null;
+  const verified = result.checks.filter(c => c.passed !== null).length;
+  const total = result.checks.length;
+  const tone = b.confidenceLabel === "High" ? "trust-safe" : b.confidenceLabel === "Medium" ? "trust-warning" : "trust-danger";
+  return (
+    <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/60 border border-border/40">
+      <Gauge size={11} className={`text-${tone}`} />
+      <span className="text-[11px] text-muted-foreground">
+        Checked {verified}/{total}
+        {expert ? ` · ${Math.round(b.confidence * 100)}% confidence` : ` · ${b.confidenceLabel.toLowerCase()} confidence`}
+      </span>
+    </div>
+  );
+}
+
+/* ── Severity weight badge (expert) ── */
+function WeightChip({ id }: { id: string }) {
+  const m = metaFor(id);
+  return (
+    <span className="text-[9px] font-mono text-muted-foreground/50 tabular-nums shrink-0">{m.weight}pts</span>
+  );
+}
+
 /* ── Individual check card with expandable tech details ── */
-function CheckCard({ check, variant, expanded, onToggle }: {
+function CheckCard({ check, variant, expanded, onToggle, expert }: {
   check: SecurityCheck;
   variant: "danger" | "warning";
   expanded: boolean;
   onToggle: () => void;
+  expert: boolean;
 }) {
   const meta = HUMAN_LABELS[check.id];
   const Icon = meta?.icon || Info;
@@ -479,6 +578,12 @@ function CheckCard({ check, variant, expanded, onToggle }: {
           <p className={`text-xs text-${colorClass}/80 mt-0.5`}>
             {isDanger ? (meta?.action || check.status) : check.status}
           </p>
+          {expert && meta && (
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 mt-1">
+              <Terminal size={9} />
+              <span className="font-mono">{meta.techLabel}</span>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {isDanger ? (
@@ -492,12 +597,6 @@ function CheckCard({ check, variant, expanded, onToggle }: {
 
       {expanded && (
         <div className="mt-3 pt-3 border-t border-border/50 space-y-2">
-          {meta && (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-              <Terminal size={10} />
-              <span className="font-mono">{meta.techLabel}</span>
-            </div>
-          )}
           {check.explanation && (
             <p className="text-xs text-muted-foreground leading-relaxed">{check.explanation}</p>
           )}

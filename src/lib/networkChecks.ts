@@ -271,7 +271,7 @@ export async function checkWebRTCLeak(): Promise<WebRTCLeakResult> {
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
-      try { pc.close(); } catch {}
+      try { pc.close(); } catch { /* already closed */ }
       resolve({
         id, passed: true,
         evidence: { "Note": "ICE gathering timed out — browser likely using mDNS privacy" },

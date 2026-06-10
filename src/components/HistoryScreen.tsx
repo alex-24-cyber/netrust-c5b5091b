@@ -1,5 +1,6 @@
-import { ShieldCheck, ShieldAlert, ShieldX, Clock, ChevronRight, Fingerprint } from "lucide-react";
+import { ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion, Clock, ChevronRight, Fingerprint } from "lucide-react";
 import { ScanResult } from "@/lib/mockData";
+import { resolveBand, bandFromScore, type TrustBand } from "@/lib/scoring";
 import { getStoredFingerprints } from "@/lib/networkFingerprint";
 
 interface HistoryEntry {
@@ -14,11 +15,12 @@ interface HistoryScreenProps {
   onGoToScan: () => void;
 }
 
-function getThreatLevel(score: number) {
-  if (score <= 40) return "danger";
-  if (score <= 70) return "warning";
-  return "safe";
-}
+const BAND_UI: Record<TrustBand, { Icon: typeof ShieldCheck; color: string; bg: string; text: string }> = {
+  safe: { Icon: ShieldCheck, color: "text-trust-safe", bg: "bg-trust-safe/10", text: "Safe" },
+  caution: { Icon: ShieldAlert, color: "text-trust-warning", bg: "bg-trust-warning/10", text: "Be Careful" },
+  danger: { Icon: ShieldX, color: "text-trust-danger", bg: "bg-trust-danger/10", text: "Not Safe" },
+  unknown: { Icon: ShieldQuestion, color: "text-primary", bg: "bg-primary/10", text: "Unverified" },
+};
 
 function formatTime(date: Date) {
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -32,12 +34,6 @@ function formatDate(date: Date) {
   if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
   return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
-
-const VERDICT_TEXT = {
-  danger: "Not Safe",
-  warning: "Be Careful",
-  safe: "Safe",
-};
 
 const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps) => {
   const fingerprints = getStoredFingerprints();
@@ -78,16 +74,14 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
               const avgScore = fp.trustScores.length > 0
                 ? Math.round(fp.trustScores.reduce((a: number, b: number) => a + b, 0) / fp.trustScores.length)
                 : null;
-              const level = avgScore != null ? getThreatLevel(avgScore) : null;
+              const ChipIcon = avgScore != null ? BAND_UI[bandFromScore(avgScore)].Icon : Fingerprint;
+              const chipColor = avgScore != null ? BAND_UI[bandFromScore(avgScore)].color : "text-muted-foreground";
               return (
                 <div
                   key={fp.id}
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-secondary/50 border border-border/50"
                 >
-                  {level === "danger" ? <ShieldX size={11} className="text-trust-danger" /> :
-                   level === "warning" ? <ShieldAlert size={11} className="text-trust-warning" /> :
-                   level === "safe" ? <ShieldCheck size={11} className="text-trust-safe" /> :
-                   <Fingerprint size={11} className="text-muted-foreground" />}
+                  <ChipIcon size={11} className={chipColor} />
                   <span className="text-[11px] font-mono text-foreground truncate max-w-[100px]">{fp.ssid}</span>
                   <span className="text-[9px] text-muted-foreground/50">{fp.scanCount}x</span>
                 </div>
@@ -102,11 +96,12 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
         Past Scans
       </h3>
       {entries.map((entry) => {
-        const level = getThreatLevel(entry.result.trustScore);
+        const band = resolveBand(entry.result);
+        const ui = BAND_UI[band];
+        const Icon = ui.Icon;
+        const colorClass = ui.color;
+        const bgClass = ui.bg;
         const failedCount = entry.result.checks.filter(c => c.passed === false).length;
-        const Icon = level === "danger" ? ShieldX : level === "warning" ? ShieldAlert : ShieldCheck;
-        const colorClass = level === "danger" ? "text-trust-danger" : level === "warning" ? "text-trust-warning" : "text-trust-safe";
-        const bgClass = level === "danger" ? "bg-trust-danger/10" : level === "warning" ? "bg-trust-warning/10" : "bg-trust-safe/10";
 
         return (
           <button
@@ -124,10 +119,10 @@ const HistoryScreen = ({ entries, onViewResult, onGoToScan }: HistoryScreenProps
                     {entry.result.wifiCurrentConnection?.ssid || entry.result.networkName}
                   </p>
                   <span className={`text-[11px] font-bold font-mono ${colorClass}`}>
-                    {entry.result.trustScore}
+                    {band === "unknown" ? "?" : entry.result.trustScore}
                   </span>
                   <span className={`text-xs font-semibold ${colorClass}`}>
-                    {VERDICT_TEXT[level]}
+                    {ui.text}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mt-0.5">

@@ -1,6 +1,7 @@
-import { useRef } from "react";
 import { ScanResult } from "@/lib/mockData";
-import { ShieldCheck, ShieldAlert, ShieldX, Share2, Copy } from "lucide-react";
+import { resolveBand, type TrustBand } from "@/lib/scoring";
+import { buildReport } from "@/lib/report";
+import { ShieldCheck, ShieldAlert, ShieldX, ShieldQuestion, Share2, Copy, FileDown } from "lucide-react";
 
 interface ShareCardProps {
   result: ScanResult;
@@ -8,24 +9,20 @@ interface ShareCardProps {
   onToast: (msg: string) => void;
 }
 
-function getThreatLevel(score: number) {
-  if (score <= 40) return "danger";
-  if (score <= 70) return "caution";
-  return "safe";
-}
-
-const VERDICTS = {
+const VERDICTS: Record<TrustBand, { icon: typeof ShieldCheck; title: string; color: string; bg: string }> = {
   safe: { icon: ShieldCheck, title: "Safe", color: "trust-safe", bg: "bg-trust-safe" },
   caution: { icon: ShieldAlert, title: "Use Caution", color: "trust-warning", bg: "bg-trust-warning" },
   danger: { icon: ShieldX, title: "Not Safe", color: "trust-danger", bg: "bg-trust-danger" },
+  unknown: { icon: ShieldQuestion, title: "Unverified", color: "primary", bg: "bg-primary" },
 };
 
 const ShareCard = ({ result, onClose, onToast }: ShareCardProps) => {
-  const level = getThreatLevel(result.trustScore);
+  const level = resolveBand(result);
   const verdict = VERDICTS[level];
   const VerdictIcon = verdict.icon;
   const failedCount = result.checks.filter(c => c.passed === false).length;
   const passedCount = result.checks.filter(c => c.passed === true).length;
+  const scoreText = level === "unknown" ? "—" : `${result.trustScore}/100`;
 
   const shareText = () => {
     const ssid = result.wifiCurrentConnection?.ssid || result.networkName;
@@ -33,12 +30,27 @@ const ShareCard = ({ result, onClose, onToast }: ShareCardProps) => {
       `🛡️ NetTrust WiFi Scan`,
       ``,
       `Network: ${ssid}`,
-      `Score: ${result.trustScore}/100 — ${verdict.title}`,
+      `Score: ${scoreText} — ${verdict.title}`,
       `✅ ${passedCount} passed | ❌ ${failedCount} failed`,
       ``,
       `Scan your WiFi at netrust.lovable.app`,
     ];
     return lines.join("\n");
+  };
+
+  const handleDownload = () => {
+    const report = buildReport(result);
+    const blob = new Blob([report], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+    a.href = url;
+    a.download = `nettrust-scan-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    onToast("Report saved");
   };
 
   const handleShare = async () => {
@@ -47,7 +59,9 @@ const ShareCard = ({ result, onClose, onToast }: ShareCardProps) => {
       try {
         await navigator.share({ title: "NetTrust Scan Result", text });
         return;
-      } catch {}
+      } catch {
+        /* user dismissed the share sheet — fall through to clipboard */
+      }
     }
     await navigator.clipboard.writeText(text);
     onToast("Copied to clipboard!");
@@ -69,7 +83,7 @@ const ShareCard = ({ result, onClose, onToast }: ShareCardProps) => {
           <div className={`${verdict.bg}/10 p-6 flex flex-col items-center gap-3`}>
             <VerdictIcon size={40} className={`text-${verdict.color}`} />
             <div className="text-center">
-              <p className={`text-3xl font-black font-mono text-${verdict.color}`}>{result.trustScore}</p>
+              <p className={`text-3xl font-black font-mono text-${verdict.color}`}>{level === "unknown" ? "?" : result.trustScore}</p>
               <p className={`text-sm font-bold text-${verdict.color} mt-1`}>{verdict.title}</p>
             </div>
           </div>
@@ -94,6 +108,13 @@ const ShareCard = ({ result, onClose, onToast }: ShareCardProps) => {
             aria-label="Share scan result"
           >
             <Share2 size={16} /> Share
+          </button>
+          <button
+            onClick={handleDownload}
+            className="py-3.5 px-5 rounded-xl bg-secondary border border-border/50 text-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            aria-label="Download full report"
+          >
+            <FileDown size={16} />
           </button>
           <button
             onClick={handleCopy}

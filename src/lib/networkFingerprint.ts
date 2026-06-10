@@ -53,7 +53,9 @@ function saveFingerprints(fps: Record<string, NetworkFingerprint>): void {
       fps = Object.fromEntries(entries.slice(0, MAX_FINGERPRINTS));
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(fps));
-  } catch {}
+  } catch {
+    /* storage full or unavailable — fingerprints are best-effort */
+  }
 }
 
 function generateFingerprintId(ssid: string, publicIp: string | null, ispOrg: string | null): string {
