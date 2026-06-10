@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS public.scan_history;

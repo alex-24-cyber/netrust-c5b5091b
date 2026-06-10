@@ -14,39 +14,7 @@ export type Database = {
   }
   public: {
     Tables: {
-      scan_history: {
-        Row: {
-          device_id: string
-          id: string
-          network_name: string
-          network_type: string
-          result_json: Json
-          scanned_at: string
-          trust_label: string
-          trust_score: number
-        }
-        Insert: {
-          device_id: string
-          id?: string
-          network_name: string
-          network_type: string
-          result_json: Json
-          scanned_at?: string
-          trust_label: string
-          trust_score: number
-        }
-        Update: {
-          device_id?: string
-          id?: string
-          network_name?: string
-          network_type?: string
-          result_json?: Json
-          scanned_at?: string
-          trust_label?: string
-          trust_score?: number
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
