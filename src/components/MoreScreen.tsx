@@ -2,8 +2,11 @@ import { useState } from "react";
 import {
   Shield, ShieldCheck, Wifi, Lock, Globe, Server, Video, Code, Fingerprint,
   Zap, Share2, Trash2, ChevronRight, Info, Settings,
-  Database,
+  Database, SlidersHorizontal, Download,
 } from "lucide-react";
+import ModeToggle from "@/components/ModeToggle";
+import { UserMode } from "@/lib/userMode";
+import { useInstallPrompt } from "@/lib/useInstallPrompt";
 
 interface MoreScreenProps {
   onClearHistory: () => void;
@@ -12,6 +15,8 @@ interface MoreScreenProps {
   onEraseAllData: () => void;
   historyCount: number;
   hasResults: boolean;
+  mode: UserMode;
+  onModeChange: (mode: UserMode) => void;
 }
 
 const CHECKS_INFO = [
@@ -31,12 +36,15 @@ const MoreScreen = ({
   onEraseAllData,
   historyCount,
   hasResults,
+  mode,
+  onModeChange,
 }: MoreScreenProps) => {
   const [showChecks, setShowChecks] = useState(false);
   const [showDataDetails, setShowDataDetails] = useState(false);
   const [confirmClearHistory, setConfirmClearHistory] = useState(false);
   const [confirmClearFingerprints, setConfirmClearFingerprints] = useState(false);
   const [confirmEraseAll, setConfirmEraseAll] = useState(false);
+  const { canInstall, promptInstall } = useInstallPrompt();
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 pb-6">
@@ -56,6 +64,23 @@ const MoreScreen = ({
         </div>
       </div>
 
+      {/* Install */}
+      {canInstall && (
+        <button
+          onClick={promptInstall}
+          className="glass-card p-4 flex items-center gap-3 text-left w-full border border-primary/30 transition-all active:scale-[0.99] hover:border-primary/50"
+        >
+          <div className="p-2 rounded-lg bg-primary/15 border border-primary/30 shrink-0">
+            <Download size={18} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground">Install NetTrust</p>
+            <p className="text-[11px] text-muted-foreground">Add it to your home screen — works offline, opens instantly</p>
+          </div>
+          <ChevronRight size={16} className="text-muted-foreground/40 shrink-0" />
+        </button>
+      )}
+
       {/* About */}
       <div className="glass-card p-4">
         <div className="flex items-center gap-2 mb-2">
@@ -67,6 +92,22 @@ const MoreScreen = ({
         </p>
         <p className="text-sm text-foreground/90 leading-relaxed mt-2">
           Perfect for anyone who uses WiFi at cafes, airports, hotels, or coworking spaces.
+        </p>
+      </div>
+
+      {/* Detail level */}
+      <div className="glass-card p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={14} className="text-primary" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Detail Level</h3>
+          </div>
+          <ModeToggle mode={mode} onChange={onModeChange} size="md" />
+        </div>
+        <p className="text-sm text-foreground/80 leading-relaxed mt-3">
+          {mode === "expert"
+            ? "Expert: you'll see the scoring breakdown, per-check severity weights, raw evidence, and the live scan log."
+            : "Simple: plain-English verdicts with clear advice and no jargon. Switch to Expert any time to see the technical details."}
         </p>
       </div>
 

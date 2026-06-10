@@ -1,5 +1,6 @@
 import { RealCheckResult, IPReputationData, ScanLogEntry, ConnectionInfo } from "./networkChecks";
 import type { WifiNetwork, WifiCurrentConnection } from "./wifiScanner";
+import { scoreChecks, type TrustBand, type ScoreBreakdown } from "./scoring";
 
 export interface SecurityCheck {
   id: string;
@@ -22,6 +23,12 @@ export interface ScanResult {
   connectionInfo?: ConnectionInfo;
   trustScore: number;
   trustLabel: string;
+  /** Severity band from the scoring engine. Optional for backward-compat with older stored scans. */
+  band?: TrustBand;
+  /** 0–1 fraction of check weight we were able to verify. */
+  confidence?: number;
+  /** Full scoring breakdown, surfaced in expert mode. */
+  scoreBreakdown?: ScoreBreakdown;
   checks: SecurityCheck[];
   scanLog?: ScanLogEntry[];
   wifiNetworks?: WifiNetwork[];
@@ -52,17 +59,6 @@ function realCheckToSecurityCheck(rc: RealCheckResult): SecurityCheck {
   };
 }
 
-function calculateScore(checks: SecurityCheck[]): { trustScore: number; trustLabel: string } {
-  const perCheck = checks.length > 0 ? 100 / checks.length : 14;
-  let score = 0;
-  for (const c of checks) {
-    if (c.passed === true) score += perCheck;
-    else if (c.passed === null) score += perCheck * 0.75; // inconclusive ≈ likely safe, reduces score swing
-  }
-  const trustScore = Math.max(0, Math.min(100, Math.round(score)));
-  const trustLabel = trustScore <= 40 ? "High Risk" : trustScore <= 70 ? "Use Caution" : "Trusted";
-  return { trustScore, trustLabel };
-}
 
 export function buildScanResult(
   realResults: RealCheckResult[],
@@ -80,7 +76,7 @@ export function buildScanResult(
     .map((id) => liveChecks.find((c) => c.id === id)!)
     .filter(Boolean);
 
-  const { trustScore, trustLabel } = calculateScore(checks);
+  const scoreBreakdown = scoreChecks(checks);
 
   return {
     networkName: wifiCurrentConnection?.ssid || "Current Network",
@@ -90,8 +86,11 @@ export function buildScanResult(
     webrtcLocalIp: webrtcLeakedIp,
     ipReputation,
     connectionInfo,
-    trustScore,
-    trustLabel,
+    trustScore: scoreBreakdown.score,
+    trustLabel: scoreBreakdown.label,
+    band: scoreBreakdown.band,
+    confidence: scoreBreakdown.confidence,
+    scoreBreakdown,
     checks,
     scanLog,
     wifiNetworks,
